@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+<title>ADHD Coach</title>
+
+<!-- Aprendo l'app da "Aggiungi a Home" su telefono, questi tag fanno sì che
+     parta a schermo intero, senza barra degli indirizzi del browser, con
+     icona e colori propri — è quello che la fa sembrare un'app vera. -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#238679">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ADHD Coach">
+<link rel="apple-touch-icon" href="/img/icons/icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/img/icons/icon-192.png">
+<link rel="icon" type="image/svg+xml" href="/img/icona-app-coach.svg">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.30.0/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<!-- ===================== AUTENTICAZIONE ===================== -->
+<div id="view-auth" class="auth-wrap">
+  <div class="auth-card">
+    <div class="logo" style="justify-content:center;padding-bottom:18px">
+      <div class="logo-icon"><img src="/img/icona-app-coach.svg" alt="ADHD Coach"></div>
+      <div class="logo-text"><p>ADHD Coach</p><span>Accedi o crea un account</span></div>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login" onclick="showAuthTab('login')">Accedi</button>
+      <button class="auth-tab" id="tab-register" onclick="showAuthTab('register')">Crea account</button>
+    </div>
+
+    <!-- LOGIN -->
+    <form id="form-login" class="auth-form" onsubmit="return false">
+      <div class="form-group"><label for="login-email">Email</label><input type="email" id="login-email" required></div>
+      <div class="form-group"><label for="login-password">Password</label><input type="password" id="login-password" required></div>
+      <div class="auth-error" id="login-error"></div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doLogin()"><i class="ti ti-login"></i>Accedi</button>
+    </form>
+
+    <!-- REGISTRAZIONE -->
+    <form id="form-register" class="auth-form" style="display:none" onsubmit="return false">
+      <div class="form-group">
+        <label>Chi sei?</label>
+        <div class="role-toggle">
+          <button type="button" class="role-toggle-btn active" id="role-btn-teen" onclick="setRegisterRole('teen')"><i class="ti ti-user"></i>14-17</button>
+          <button type="button" class="role-toggle-btn" id="role-btn-adult" onclick="setRegisterRole('adult')"><i class="ti ti-user"></i>&gt;18</button>
+          <button type="button" class="role-toggle-btn" id="role-btn-parent" onclick="setRegisterRole('parent')"><i class="ti ti-users"></i>Genitore</button>
+          <button type="button" class="role-toggle-btn" id="role-btn-therapist" onclick="setRegisterRole('therapist')"><i class="ti ti-stethoscope"></i>Terapeuta</button>
+        </div>
+      </div>
+      <div class="form-group"><label for="reg-name">Nome</label><input type="text" id="reg-name" required></div>
+      <div class="form-group" id="reg-specialty-group" style="display:none">
+        <label for="reg-specialty">Specializzazione (facoltativa)</label>
+        <input type="text" id="reg-specialty" placeholder="Es. Psicologa clinica, adolescenti">
+      </div>
+      <div class="form-group"><label for="reg-email">Email</label><input type="email" id="reg-email" required></div>
+      <div class="form-group"><label for="reg-password">Password (almeno 8 caratteri)</label><input type="password" id="reg-password" required minlength="8"></div>
+      <div class="auth-error" id="register-error"></div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doRegister()"><i class="ti ti-user-plus"></i>Crea account</button>
+    </form>
+
+    <p class="auth-disclaimer">Questa app non fa diagnosi, non prescrive farmaci e non sostituisce il tuo terapeuta o i servizi di emergenza.</p>
+  </div>
+</div>
+
+<!-- ===================== NOTIFICHE (una sola volta, subito dopo la registrazione) ===================== -->
+<div id="view-notifications" class="auth-wrap" style="display:none">
+  <div class="auth-card">
+    <h1 style="font-size:20px;margin-bottom:6px">Notifiche e promemoria</h1>
+    <p class="page-desc" style="margin-bottom:18px">Scegli cosa vuoi ricevere. Puoi cambiare idea in qualsiasi momento dal tuo profilo.</p>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:400">
+        <input type="checkbox" id="notif-push" checked style="width:18px;height:18px;flex:none">
+        Notifiche push (avvisi diretti sul dispositivo)
+      </label>
+    </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:400">
+        <input type="checkbox" id="notif-email" checked style="width:18px;height:18px;flex:none">
+        Email (aggiornamenti e riepiloghi)
+      </label>
+    </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:400">
+        <input type="checkbox" id="notif-reminders" checked style="width:18px;height:18px;flex:none">
+        Promemoria per i tuoi impegni in agenda
+      </label>
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="saveNotificationsPrefs()"><i class="ti ti-check"></i>Continua</button>
+  </div>
+</div>
+
+<!-- ===================== PRIVACY E CONSENSO INFORMATO (una sola volta, subito dopo la registrazione) ===================== -->
+<div id="view-consent" class="auth-wrap" style="display:none">
+  <div class="auth-card">
+    <h1 style="font-size:20px;margin-bottom:6px">Privacy e consenso informato</h1>
+    <!--
+      TESTO SEGNAPOSTO: sostituisci il paragrafo qui sotto con il testo
+      definitivo dell'informativa privacy e del consenso informato quando
+      sarà pronto. Il resto della schermata (checkbox, pulsante) non va toccato.
+    -->
+    <div class="page-desc" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;line-height:1.6">
+      [Qui andrà il testo completo dell'informativa sulla privacy e del consenso informato. Per ora è un testo segnaposto: verrà sostituito con il contenuto definitivo.]
+    </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:400">
+        <input type="checkbox" id="consent-privacy" style="width:18px;height:18px;flex:none" onchange="updateConsentButton()">
+        Ho letto e accetto l'informativa sulla privacy.
+      </label>
+    </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:400">
+        <input type="checkbox" id="consent-informed" style="width:18px;height:18px;flex:none" onchange="updateConsentButton()">
+        Ho letto e fornisco il consenso informato al trattamento dei dati.
+      </label>
+    </div>
+    <div class="auth-error" id="consent-error"></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" id="consent-continue-btn" disabled onclick="submitConsent()"><i class="ti ti-check"></i>Accetta e continua</button>
+  </div>
+</div>
+
+<!-- ===================== OBIETTIVI (una sola volta, solo pazienti) ===================== -->
+<div id="view-goals" class="auth-wrap" style="display:none">
+  <div class="auth-card">
+    <h1 style="font-size:20px;margin-bottom:6px">Quali sono i tuoi obiettivi?</h1>
+    <p class="page-desc" style="margin-bottom:18px">Scegli quelli che ti rappresentano di più: ci aiutano a personalizzare l'app per te. Puoi selezionarne più di uno.</p>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:400">
+        <input type="checkbox" class="goal-option" value="Organizzare meglio le giornate" style="width:18px;height:18px;flex:none">
+        Organizzare meglio le giornate
+      </label>
+    </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:400">
+        <input type="checkbox" class="goal-option" value="Portare a termine ciò che inizio" style="width:18px;height:18px;flex:none">
+        Portare a termine ciò che inizio
+      </label>
+    </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:400">
+        <input type="checkbox" class="goal-option" value="Ridurre lo stress quotidiano" style="width:18px;height:18px;flex:none">
+        Ridurre lo stress quotidiano
+      </label>
+    </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:400">
+        <input type="checkbox" class="goal-option" value="Migliorare il sonno e l'energia" style="width:18px;height:18px;flex:none">
+        Migliorare il sonno e l'energia
+      </label>
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="submitGoals()"><i class="ti ti-check"></i>Continua</button>
+  </div>
+</div>
+
+<!-- ===================== SCELTA TERAPEUTA (solo pazienti non ancora collegati) ===================== -->
+<div id="view-pairing" class="auth-wrap" style="display:none">
+  <div class="auth-card" style="max-width:560px">
+    <h1 style="font-size:20px;margin-bottom:6px">Scegli il tuo terapeuta</h1>
+    <p class="page-desc" style="margin-bottom:18px">Puoi scegliere un professionista dall'elenco, oppure lasciare che l'app ne assegni uno automaticamente. Potrai vedere la sua chat solo dopo il collegamento.</p>
+    <div id="pairing-list"></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:14px" onclick="pairRandom()"><i class="ti ti-dice"></i>Assegnazione casuale</button>
+
+    <div style="display:flex;align-items:center;gap:10px;margin:18px 0">
+      <div style="flex:1;height:1px;background:var(--border)"></div>
+      <span style="font-size:12px;color:var(--muted-fg)">oppure</span>
+      <div style="flex:1;height:1px;background:var(--border)"></div>
+    </div>
+
+    <div class="form-group">
+      <label for="pairing-code">Hai già il codice del tuo terapeuta?</label>
+      <input type="text" id="pairing-code" placeholder="Es. AB23CD" style="text-transform:uppercase" maxlength="6">
+    </div>
+    <button class="btn" style="width:100%;justify-content:center" onclick="pairByCode()"><i class="ti ti-link"></i>Collega con il codice</button>
+    <div class="auth-error" id="pairing-error"></div>
+    <p style="text-align:center;margin-top:16px"><a href="#" onclick="doLogout();return false" style="font-size:12px;color:var(--muted-fg);text-decoration:underline">Esci</a></p>
+  </div>
+</div>
+
+<!-- ===================== COLLEGAMENTO GENITORE (solo genitori non ancora collegati) ===================== -->
+<div id="view-parent-link" class="auth-wrap" style="display:none">
+  <div class="auth-card">
+    <h1 style="font-size:20px;margin-bottom:6px">Collega tuo figlio/a</h1>
+    <p class="page-desc" style="margin-bottom:18px">Chiedi a tuo figlio/a di aprire il suo profilo, generare un codice e condividerlo con te. Inseriscilo qui sotto per collegare i due account.</p>
+    <div class="form-group"><label for="parent-link-code">Codice</label><input type="text" id="parent-link-code" placeholder="Es. AB23CD" style="text-transform:uppercase" maxlength="6"></div>
+    <div class="auth-error" id="parent-link-error"></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="submitParentLinkCode()"><i class="ti ti-link"></i>Collega account</button>
+    <p style="text-align:center;margin-top:16px"><a href="#" onclick="doLogout();return false" style="font-size:12px;color:var(--muted-fg);text-decoration:underline">Esci</a></p>
+  </div>
+</div>
+
+<!-- ===================== APP (dopo login, ed eventuale pairing) ===================== -->
+<div class="app" id="app-root" style="display:none">
+
+  <div class="account-bar" id="account-bar">
+    <span class="account-bar-name" id="acct-name-el">—</span>
+    <button class="account-btn" onclick="toggleDropdown()" aria-label="Account">
+      <div class="account-avatar-wrap" id="acct-avatar-wrap"></div>
+      <i class="ti ti-chevron-down" style="font-size:14px;color:var(--muted-fg)"></i>
+    </button>
+    <div class="account-dropdown" id="account-dropdown">
+      <div class="dropdown-header">
+        <div class="dropdown-avatar-big" id="dropdown-avatar-wrap"></div>
+        <div class="dropdown-name" id="dd-name">—</div>
+        <div class="dropdown-role" id="dd-role">—</div>
+      </div>
+      <div class="dropdown-item" onclick="navigateTo('profilo')"><i class="ti ti-user-circle"></i>Modifica profilo</div>
+      <div class="dropdown-item role-patient" onclick="navigateTo('coach')"><i class="ti ti-sparkles"></i>Vai al Coach IA</div>
+      <div class="dropdown-item role-patient" onclick="navigateTo('messaggi')"><i class="ti ti-user-cog"></i>Il tuo terapeuta</div>
+      <div class="dropdown-item" onclick="doLogout()"><i class="ti ti-logout"></i>Esci</div>
+    </div>
+  </div>
+
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon"><img src="/img/icona-app-coach.svg" alt="ADHD Coach"></div>
+      <div class="logo-text"><p>ADHD Coach</p><span id="sidebar-tag">MVP</span></div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">Generale</div>
+      <button class="nav-item active" data-page="home" onclick="navigateTo('home')"><span class="nav-icon-chip chip-dashboard"><i class="ti ti-layout-dashboard"></i></span>Dashboard</button>
+      <button class="nav-item role-patient" data-page="timer" onclick="navigateTo('timer')"><span class="nav-icon-chip chip-timer"><i class="ti ti-clock-play"></i></span>Timer focus</button>
+      <button class="nav-item role-patient" data-page="coach" onclick="navigateTo('coach')"><span class="nav-icon-chip chip-coach"><i class="ti ti-sparkles"></i></span>Coach IA</button>
+      <button class="nav-item role-patient" data-page="messaggi" onclick="navigateTo('messaggi')"><span class="nav-icon-chip chip-messaggi"><i class="ti ti-user-cog"></i></span>Il tuo terapeuta</button>
+      <button class="nav-item role-patient" data-page="revisione" onclick="navigateTo('revisione')"><span class="nav-icon-chip chip-revisione"><i class="ti ti-video"></i></span>Revisione</button>
+      <div class="nav-section role-patient" id="nav-section-dashboard">Dashboard</div>
+      <button class="nav-item role-patient" data-page="calendario" onclick="navigateTo('calendario')"><span class="nav-icon-chip chip-routine"><i class="ti ti-calendar"></i></span>Calendario</button>
+      <button class="nav-item role-patient" data-page="attivita" onclick="navigateTo('attivita')"><span class="nav-icon-chip chip-attivita"><i class="ti ti-checklist"></i></span>Attività</button>
+      <button class="nav-item role-patient" data-page="checkin" onclick="navigateTo('checkin')"><span class="nav-icon-chip chip-checkin"><i class="ti ti-heart-rate-monitor"></i></span>Check-in</button>
+      <button class="nav-item role-patient" data-page="statistiche" onclick="navigateTo('statistiche')"><span class="nav-icon-chip chip-statistiche"><i class="ti ti-chart-bar"></i></span>Statistiche</button>
+      <button class="nav-item role-parent" data-page="parent" onclick="navigateTo('parent')" style="display:none"><span class="nav-icon-chip chip-dashboard"><i class="ti ti-users"></i></span>I miei figli/e</button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-badge">Confini chiari</div>
+      <p class="role-patient">Non diagnostica, non prescrive farmaci e non sostituisce terapeuta o servizi di emergenza.</p>
+      <p class="role-therapist" style="display:none">Vista clinica non diagnostica: supporto all'organizzazione, non sostituisce la cartella clinica.</p>
+      <p class="role-parent" style="display:none">Vista di sola lettura su ciò che tuo figlio/a condivide: non fa diagnosi né sostituisce il terapeuta.</p>
+    </div>
+  </aside>
+
+  <div class="main-wrap">
+    <div class="mobile-bar">
+      <div class="mobile-bar-nav" id="mobile-bar-nav"></div>
+    </div>
+
+    <main class="main">
+
+      <!-- HOME -->
+      <div id="page-home" class="page active">
+        <div class="hero-card">
+          <h2 id="home-greeting">Ciao.</h2>
+          <p id="home-sub">Bentornato/a nella tua app.</p>
+        </div>
+        <div class="card">
+          <i class="ti ti-shield-check" style="color:var(--primary);font-size:26px;margin-bottom:10px"></i>
+          <div class="card-title">Guardrail MVP</div>
+          <p style="font-size:13px;color:var(--muted-fg);line-height:1.7;margin-top:6px">L'app non fa diagnosi, non prescrive farmaci, non fa terapia e non sostituisce terapeuta, medico o servizi di emergenza. I dati dei pazienti sono visibili solo al proprio terapeuta collegato, mai ad altri pazienti o terapeuti.</p>
+        </div>
+      </div>
+
+      <!-- TIMER FOCUS -->
+      <div id="page-timer" class="page">
+        <span class="page-badge">Strumento</span>
+        <h1>Timer per il focus</h1>
+        <p class="page-desc">Scegli una durata breve, avvia il timer e concentrati solo su questo. Quando suona, fai una pausa vera — non un altro compito.</p>
+        <div class="card" style="max-width:420px;text-align:center;margin:0 auto">
+          <div id="timer-context" style="display:none;margin-bottom:14px"><span class="page-badge">Stai cronometrando</span> <strong id="timer-context-text"></strong></div>
+          <div class="timer-ring-wrap">
+            <svg width="220" height="220" viewBox="0 0 220 220">
+              <circle cx="110" cy="110" r="100" fill="none" stroke="var(--muted)" stroke-width="14"/>
+              <circle cx="110" cy="110" r="100" fill="none" stroke="var(--primary)" stroke-width="14" stroke-linecap="round" id="timer-ring-fill" transform="rotate(-90 110 110)"/>
+            </svg>
+            <div class="timer-display" id="timer-display">15:00</div>
+          </div>
+          <div class="timer-presets">
+            <button class="timer-preset-btn" onclick="setTimerDuration(5,this)">5 min</button>
+            <button class="timer-preset-btn" onclick="setTimerDuration(10,this)">10 min</button>
+            <button class="timer-preset-btn active" onclick="setTimerDuration(15,this)">15 min</button>
+            <button class="timer-preset-btn" onclick="setTimerDuration(25,this)">25 min</button>
+          </div>
+          <div class="btn-row" style="justify-content:center;margin-top:18px;margin-bottom:0">
+            <button class="btn btn-primary" id="timer-start-btn" onclick="toggleTimer()"><i class="ti ti-player-play"></i>Avvia</button>
+            <button class="btn" onclick="resetTimer()"><i class="ti ti-refresh"></i>Reset</button>
+          </div>
+          <div class="feedback" id="timer-done-msg" style="display:none;margin-top:16px"><i class="ti ti-confetti"></i> Tempo scaduto — bel lavoro. Ora fai una pausa vera.</div>
+        </div>
+      </div>
+
+      <!-- PROFILO -->
+      <div id="page-profilo" class="page">
+        <span class="page-badge">Profilo</span>
+        <h1>Il tuo profilo</h1>
+        <p class="page-desc">Le informazioni essenziali per personalizzare l'app.</p>
+        <div class="grid-2" style="align-items:start">
+          <div class="card">
+            <div class="card-title">Il tuo avatar</div>
+            <div class="card-desc">Scegli l'emoji che ti rappresenta meglio.</div>
+            <div style="display:flex;justify-content:center;margin-bottom:20px">
+              <div style="width:110px;height:110px;border-radius:50%;overflow:hidden;border:3px solid var(--border);background:hsl(172,59%,88%);display:flex;align-items:center;justify-content:center">
+                <span id="preview-avatar-icon"></span>
+              </div>
+            </div>
+            <div class="emoji-picker-grid" id="emoji-picker-grid"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Informazioni</div>
+            <div class="card-desc">Usate per personalizzare i saluti nell'app.</div>
+            <div class="form-group"><label for="prof-name">Nome</label><input type="text" id="prof-name"></div>
+            <div class="form-group"><label for="prof-nickname">Nickname</label><input type="text" id="prof-nickname" placeholder="Come vuoi essere chiamato/a nell'app"></div>
+            <div class="form-group role-patient"><label for="prof-goal">Richiesta</label>
+              <select id="prof-goal">
+                <option value="">Seleziona...</option>
+                <option>Gestire meglio il lavoro</option>
+                <option>Completare i compiti scolastici</option>
+                <option>Ridurre le distrazioni</option>
+                <option>Costruire routine stabili</option>
+                <option>Migliorare la gestione del tempo</option>
+                <option>Ridurre lo stress quotidiano</option>
+              </select>
+            </div>
+            <div class="form-group role-patient"><label for="prof-job">Professione</label><input type="text" id="prof-job" placeholder="Es. Designer, Studente, Insegnante..."></div>
+            <div class="form-group role-patient">
+              <label>Codice per un genitore</label>
+              <p class="card-desc" style="margin:0 0 8px">Condividi questo codice con un genitore per fargli vedere quello che condividi (agenda, check-in, statistiche e note al terapeuta).</p>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span id="prof-link-code-box" style="font-family:monospace;font-size:18px;font-weight:600;letter-spacing:2px;background:hsl(172,59%,91%);color:var(--primary);padding:6px 14px;border-radius:8px">Nessun codice generato</span>
+                <button type="button" class="btn" onclick="generateLinkCode()"><i class="ti ti-refresh"></i>Genera nuovo</button>
+              </div>
+            </div>
+            <div class="form-group role-therapist" style="display:none"><label for="prof-specialty">Specializzazione</label><input type="text" id="prof-specialty"></div>
+            <div class="form-group role-therapist" style="display:none"><label for="prof-bio">Bio (visibile ai pazienti in cerca di un terapeuta)</label><textarea id="prof-bio" rows="3"></textarea></div>
+            <div class="form-group role-therapist" style="display:none">
+              <label>Codice per un paziente</label>
+              <p class="card-desc" style="margin:0 0 8px">Condividi questo codice con un paziente che vuole collegarsi direttamente a te, senza passare dall'elenco o dall'assegnazione casuale.</p>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span id="prof-therapist-link-code-box" style="font-family:monospace;font-size:18px;font-weight:600;letter-spacing:2px;background:hsl(172,59%,91%);color:var(--primary);padding:6px 14px;border-radius:8px">Nessun codice generato</span>
+                <button type="button" class="btn" onclick="generateTherapistLinkCode()"><i class="ti ti-refresh"></i>Genera nuovo</button>
+              </div>
+            </div>
+            <button class="btn btn-primary" onclick="saveProfile()"><i class="ti ti-device-floppy"></i>Salva profilo</button>
+            <div class="feedback" id="profile-saved"><i class="ti ti-check"></i> Profilo salvato</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DASHBOARD (teen o adulto, stessa struttura) -->
+      <div id="page-dashboard" class="page">
+        <span class="page-badge" id="dash-badge">Dashboard</span>
+        <h1 id="dash-greeting">Ciao.</h1>
+        <p class="page-desc">La dashboard raccoglie check-in, routine e attività di oggi.</p>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="dash-checkin-btn" onclick="navigateTo('checkin')"><i class="ti ti-plus"></i>Nuovo check-in</button>
+          <button class="btn" onclick="navigateTo('messaggi')"><i class="ti ti-message"></i>Il tuo terapeuta</button>
+        </div>
+
+        <div class="subtab-bar" id="dash-subtab-bar">
+          <button class="subtab-btn active" onclick="switchSubtab('dash','overview',this)">Panoramica</button>
+          <button class="subtab-btn" onclick="switchSubtab('dash','agenda',this)">Agenda</button>
+        </div>
+
+        <div id="dash-tab-overview" class="subtab-panel active">
+          <div class="grid-4" id="dash-goal-cards" style="margin-bottom:18px"></div>
+          <div class="grid-2" style="margin-bottom:18px">
+            <div class="card">
+              <div class="card-title">Stato di oggi</div><div class="card-desc">Muovi i cursori: le attività consigliate si adattano a come ti senti.</div>
+              <div class="progress-label"><span>Energia</span><span id="dash-energia-val">50%</span></div>
+              <div class="progress-bar-wrap"><div class="progress-bar"><div class="progress-fill" id="dash-energia-fill" style="width:50%"></div></div><input type="range" class="progress-range" min="0" max="100" value="50" id="dash-energia-range" oninput="onStateSlide()"></div>
+              <div class="progress-label"><span>Focus</span><span id="dash-focus-val">50%</span></div>
+              <div class="progress-bar-wrap"><div class="progress-bar"><div class="progress-fill" id="dash-focus-fill" style="width:50%"></div></div><input type="range" class="progress-range" min="0" max="100" value="50" id="dash-focus-range" oninput="onStateSlide()"></div>
+              <div class="progress-label"><span>Stress</span><span id="dash-stress-val">50%</span></div>
+              <div class="progress-bar-wrap"><div class="progress-bar"><div class="progress-fill" id="dash-stress-fill" style="width:50%"></div></div><input type="range" class="progress-range" min="0" max="100" value="50" id="dash-stress-range" oninput="onStateSlide()"></div>
+              <div class="progress-label"><span>Sonno</span><span id="dash-sonno-val">50%</span></div>
+              <div class="progress-bar-wrap" style="margin-bottom:0"><div class="progress-bar"><div class="progress-fill" id="dash-sonno-fill" style="width:50%"></div></div><input type="range" class="progress-range" min="0" max="100" value="50" id="dash-sonno-range" oninput="onStateSlide()"></div>
+            </div>
+            <div class="card">
+              <div class="card-title">Prossimi impegni</div><div class="card-desc">Le prossime cose da fare oggi.</div>
+              <div id="dash-agenda-preview"></div>
+              <button class="btn" style="margin-top:4px;width:100%;justify-content:center" onclick="goToAgenda()"><i class="ti ti-calendar-time"></i>Vedi l'agenda completa</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Riepilogo di oggi</div><div class="card-desc">Cosa hai già completato oggi, tra routine e attività.</div>
+            <div class="grid-2" id="dash-today-summary"></div>
+          </div>
+          <div class="card">
+            <div class="card-title" id="dash-suggested-title">Attività consigliate</div><div class="card-desc" id="dash-suggested-hint">Piccoli compiti per ridurre l'attrito iniziale.</div>
+            <div class="grid-3" id="dash-suggested-list"></div>
+          </div>
+        </div>
+
+        <div id="dash-tab-agenda" class="subtab-panel">
+          <div class="agenda-card">
+            <div id="dash-agenda-list"></div>
+            <div class="agenda-add-form">
+              <div class="field field-time"><label for="dash-new-time">Orario</label><input type="time" id="dash-new-time" value="12:00"></div>
+              <div class="field field-title"><label for="dash-new-title">Attività</label><input type="text" id="dash-new-title" placeholder="Es. Portare fuori il cane" maxlength="60" onkeydown="if(event.key==='Enter')addAgendaItem()"></div>
+              <div class="field field-cat"><label for="dash-new-cat">Categoria</label><select id="dash-new-cat"></select></div>
+              <button class="btn btn-primary" onclick="addAgendaItem()"><i class="ti ti-plus"></i>Aggiungi</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CALENDARIO (impegni su qualsiasi data, suddivisibili in passi) -->
+      <div id="page-calendario" class="page">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+          <div>
+            <span class="page-badge" id="calendario-badge">Calendario</span>
+            <h1>Calendario</h1>
+            <p class="page-desc" style="margin-bottom:12px">Inserisci qui i tuoi impegni, su qualsiasi giorno, e dividili in piccoli passi se ti aiuta ad affrontarli.</p>
+          </div>
+          <div style="text-align:right">
+            <button class="btn" onclick="calendarioCollegaInfo()"><i class="ti ti-link"></i>Collega</button>
+            <div class="feedback" id="calendario-collega-msg" style="display:none;margin-top:6px;max-width:220px;font-size:11px">Il collegamento con Google/Apple Calendar arriverà in un prossimo aggiornamento.</div>
+          </div>
+        </div>
+
+        <div class="subtab-bar" id="calendario-subtab-bar">
+          <button class="subtab-btn active" onclick="switchCalendarioTab('giorno',this)">Giorno</button>
+          <button class="subtab-btn" onclick="switchCalendarioTab('settimana',this)">Settimana</button>
+          <button class="subtab-btn" onclick="switchCalendarioTab('mese',this)">Mese</button>
+        </div>
+
+        <!-- GIORNO -->
+        <div id="calendario-tab-giorno" class="subtab-panel active">
+          <div class="card">
+            <div class="card-title" id="calendario-day-label">Oggi</div>
+            <div class="card-desc">Tocca una voce per segnarla come fatta, o la freccina per dividerla in passi.</div>
+            <div id="calendario-day-list"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Nuovo impegno</div><div class="card-desc" id="calendario-day-form-desc"></div>
+            <div class="agenda-add-form" style="margin-top:0;padding-top:0;border-top:none">
+              <div class="field field-time"><label for="calendario-new-time">Orario</label><input type="time" id="calendario-new-time" value="12:00"></div>
+              <div class="field field-title"><label for="calendario-new-title">Impegno</label><input type="text" id="calendario-new-title" placeholder="Es. Consegna progetto" maxlength="60" onkeydown="if(event.key==='Enter')addCalendarioEvent()"></div>
+              <div class="field field-cat"><label for="calendario-new-cat">Categoria</label><select id="calendario-new-cat"></select></div>
+              <button class="btn btn-primary" onclick="addCalendarioEvent()"><i class="ti ti-plus"></i>Aggiungi evento</button>
+            </div>
+            <div class="form-error" id="calendario-new-error" style="display:none"></div>
+          </div>
+        </div>
+
+        <!-- SETTIMANA -->
+        <div id="calendario-tab-settimana" class="subtab-panel">
+          <div class="btn-row">
+            <button class="btn" onclick="shiftCalendarioWeek(-1)"><i class="ti ti-chevron-left"></i>Sett. prec.</button>
+            <button class="btn" onclick="shiftCalendarioWeek(1)">Sett. succ.<i class="ti ti-chevron-right"></i></button>
+          </div>
+          <div class="card"><div class="card-title">Impegni della settimana</div><div class="card-desc">Tocca un giorno per aprirlo.</div>
+            <div id="calendario-week-list"></div>
+          </div>
+        </div>
+
+        <!-- MESE -->
+        <div id="calendario-tab-mese" class="subtab-panel">
+          <div class="btn-row" style="justify-content:space-between">
+            <button class="btn" onclick="shiftCalendarioMonth(-1)"><i class="ti ti-chevron-left"></i></button>
+            <div class="card-title" id="calendario-month-label" style="margin:0">—</div>
+            <button class="btn" onclick="shiftCalendarioMonth(1)"><i class="ti ti-chevron-right"></i></button>
+          </div>
+          <div class="card">
+            <div id="calendario-month-grid" class="calendario-month-grid"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Impegni di <span id="calendario-month-day-label">—</span></div>
+            <div class="card-desc">Tocca una voce per segnarla come fatta, o la freccina per dividerla in passi.</div>
+            <div id="calendario-month-day-list"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Nuovo impegno</div><div class="card-desc" id="calendario-month-form-desc"></div>
+            <div class="agenda-add-form" style="margin-top:0;padding-top:0;border-top:none">
+              <div class="field field-time"><label for="calendario-month-new-time">Orario</label><input type="time" id="calendario-month-new-time" value="12:00"></div>
+              <div class="field field-title"><label for="calendario-month-new-title">Impegno</label><input type="text" id="calendario-month-new-title" placeholder="Es. Consegna progetto" maxlength="60" onkeydown="if(event.key==='Enter')addCalendarioEventFromMonth()"></div>
+              <div class="field field-cat"><label for="calendario-month-new-cat">Categoria</label><select id="calendario-month-new-cat"></select></div>
+              <button class="btn btn-primary" onclick="addCalendarioEventFromMonth()"><i class="ti ti-plus"></i>Aggiungi evento</button>
+            </div>
+            <div class="form-error" id="calendario-month-new-error" style="display:none"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ATTIVITÀ (filtro sulle altre categorie dell'agenda) -->
+      <div id="page-attivita" class="page">
+        <span class="page-badge" id="attivita-badge">Attività</span><h1>Lista attività</h1>
+        <p class="page-desc">Le voci di agenda di oggi, raggruppate per categoria. Tocca per completare.</p>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="attivita-add-btn" onclick="toggleAttivitaAddForm()"><i class="ti ti-plus"></i>Aggiungi un'attività</button>
+        </div>
+        <div class="card" id="attivita-add-card" style="display:none">
+          <div class="card-title">Nuova attività</div><div class="card-desc"></div>
+          <div class="agenda-add-form" style="margin-top:0;padding-top:0;border-top:none">
+            <div class="field field-time"><label for="attivita-new-time">Orario</label><input type="time" id="attivita-new-time" value="12:00"></div>
+            <div class="field field-title"><label for="attivita-new-title">Attività</label><input type="text" id="attivita-new-title" placeholder="Es. Rispondere alle email" maxlength="60" onkeydown="if(event.key==='Enter')submitAttivitaAdd()"></div>
+            <div class="field field-cat"><label for="attivita-new-cat">Categoria</label><select id="attivita-new-cat"></select></div>
+            <button class="btn btn-primary" onclick="submitAttivitaAdd()"><i class="ti ti-plus"></i>Aggiungi</button>
+          </div>
+        </div>
+        <div id="attivita-groups"></div>
+      </div>
+
+      <!-- STATISTICHE -->
+      <div id="page-statistiche" class="page">
+        <span class="page-badge" id="statistiche-badge">Statistiche</span><h1>Le tue statistiche</h1>
+        <p class="page-desc">L'andamento delle tue attività, calcolato sui dati reali che hai inserito. Le percentuali contano solo i giorni in cui avevi qualcosa in agenda.</p>
+
+        <div class="subtab-bar" id="stats-subtab-bar">
+          <button class="subtab-btn active" onclick="switchSubtab('stats','day',this)">Oggi</button>
+          <button class="subtab-btn" onclick="switchSubtab('stats','week',this)">Settimana</button>
+          <button class="subtab-btn" onclick="switchSubtab('stats','month',this)">Mese</button>
+        </div>
+
+        <div id="stats-tab-day" class="subtab-panel active">
+          <div class="card">
+            <div class="card-title">Completamento di oggi</div><div class="card-desc"></div>
+            <div class="stats-highlight">
+              <div class="stats-highlight-num" id="stats-day-pct">—</div>
+              <div class="stats-highlight-label">Percentuale di attività pianificate oggi già completate</div>
+            </div>
+          </div>
+          <div class="card"><div class="card-title">Per categoria, oggi</div><div class="card-desc"></div><div id="stats-day-breakdown"></div></div>
+        </div>
+
+        <div id="stats-tab-week" class="subtab-panel">
+          <div class="card">
+            <div class="card-title">Andamento della settimana</div><div class="card-desc">Ultimi 7 giorni, oggi incluso.</div>
+            <div class="stats-highlight">
+              <div class="stats-highlight-num" id="stats-week-avg">—</div>
+              <div class="stats-highlight-label">Completamento medio, ultimi 7 giorni</div>
+            </div>
+            <div class="week-chart" id="stats-week-chart"></div>
+          </div>
+          <div class="card"><div class="card-title">Per categoria, questa settimana</div><div class="card-desc"></div><div id="stats-week-breakdown"></div></div>
+        </div>
+
+        <div id="stats-tab-month" class="subtab-panel">
+          <div class="card">
+            <div class="card-title">Andamento dell'ultimo mese</div><div class="card-desc">Media di completamento per ciascuna delle ultime 5 settimane.</div>
+            <div class="stats-highlight">
+              <div class="stats-highlight-num" id="stats-month-avg">—</div>
+              <div class="stats-highlight-label">Completamento medio, ultimo mese</div>
+            </div>
+            <div class="week-chart" id="stats-month-chart"></div>
+          </div>
+          <div class="card"><div class="card-title">Per categoria, ultimi 30 giorni</div><div class="card-desc"></div><div id="stats-month-breakdown"></div></div>
+        </div>
+      </div>
+
+      <!-- REVISIONE (paziente) -->
+      <div id="page-revisione" class="page">
+        <span class="page-badge" id="revisione-badge">Revisione</span><h1>Revisione con il tuo terapeuta</h1>
+        <p class="page-desc">Un breve incontro video da 15 minuti per fare il punto insieme. Il terapeuta propone l'orario, tu confermi o rifiuti.</p>
+
+        <div class="card" id="revisione-next-card" style="display:none">
+          <div class="card-title">Prossima revisione confermata</div><div class="card-desc"></div>
+          <div id="revisione-next"></div>
+        </div>
+
+        <div class="card" id="revisione-pending-card" style="display:none">
+          <div class="card-title">In attesa della tua risposta</div><div class="card-desc">Il tuo terapeuta ha proposto questi orari.</div>
+          <div id="revisione-pending"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Storico</div><div class="card-desc"></div>
+          <div id="revisione-history"></div>
+        </div>
+      </div>
+
+      <!-- CHECK-IN -->
+      <div id="page-checkin" class="page">
+        <span class="page-badge" id="checkin-badge">Check-in</span><h1>Come va adesso?</h1>
+        <p class="page-desc">Un check-in rapido. Non è una valutazione diagnostica.</p>
+        <div class="card" style="max-width:540px"><div class="card-title">Nuovo check-in</div><div class="card-desc">Muovi i cursori.</div>
+          <div id="checkin-fields"></div>
+          <div class="form-group"><label for="checkin-note">Nota facoltativa</label><textarea id="checkin-note" rows="3" placeholder="Scrivi una cosa utile..."></textarea></div>
+          <button class="btn btn-primary" onclick="saveCheckin()"><i class="ti ti-device-floppy"></i>Salva</button>
+          <div class="feedback" id="checkin-saved"><i class="ti ti-check"></i> Salvato</div>
+        </div>
+        <div class="card" style="max-width:700px">
+          <div class="card-title">Il tuo diario</div>
+          <div class="card-desc">Lo stato d'animo nel tempo, dal più recente. Visibile anche al tuo terapeuta e a un genitore collegato.</div>
+          <div id="checkin-diary-list"></div>
+        </div>
+      </div>
+
+      <!-- COACH -->
+      <div id="page-coach" class="page">
+        <span class="page-badge">Coach IA quotidiano</span>
+        <h1>Coach IA</h1>
+        <p class="page-desc">Supporto pratico e non clinico per organizzare la giornata, iniziare attività e ridurre distrazioni. Non è un'intelligenza artificiale generativa: sceglie tra risposte scritte in anticipo.</p>
+        <div class="grid-coach">
+          <div class="coach-chat-card">
+            <div class="coach-chat-messages" id="coach-chat-messages">
+              <div class="coach-msg-row ai">
+                <div class="coach-avatar">🧠</div>
+                <div class="coach-bubble ai">Ciao! Scrivimi come ti senti o cosa vorresti organizzare oggi: ti aiuto a trovare un primo passo pratico.</div>
+              </div>
+            </div>
+            <div class="coach-chat-inputbar">
+              <div class="grid-2" style="margin-bottom:10px">
+                <div class="form-group" style="margin:0"><label for="coach-area">Area</label>
+                  <select id="coach-area">
+                    <option value="">Rileva automaticamente</option>
+                    <option value="ORGANIZATION">Organizzazione</option><option value="ROUTINE">Routine</option>
+                    <option value="STUDY">Studio</option><option value="WORK">Lavoro</option>
+                    <option value="HOME">Casa</option><option value="MICRO_GOALS">Micro-obiettivi</option>
+                    <option value="DISTRACTIONS">Distrazioni</option><option value="MOTIVATION">Motivazione</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin:0"><label for="coach-energy">Energia</label>
+                  <select id="coach-energy"><option value="LOW">Bassa</option><option value="MEDIUM" selected>Media</option><option value="HIGH">Alta</option></select>
+                </div>
+              </div>
+              <div class="coach-chat-input-row">
+                <textarea id="coach-msg" rows="1" placeholder="Scrivi un messaggio al Coach IA..." onkeydown="if(event.key==='Enter' &amp;&amp; !event.shiftKey){event.preventDefault();askCoach();}"></textarea>
+                <button class="coach-send-btn" id="coach-btn" onclick="askCoach()" aria-label="Invia"><i class="ti ti-send"></i></button>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="card">
+              <div class="card-title">Regole di sicurezza</div><div class="card-desc">Il Coach IA resta su supporto pratico quotidiano.</div>
+              <ul class="safety-list">
+                <li>Aiuta con organizzazione, lavoro, routine e micro-obiettivi.</li>
+                <li>Aiuta a ridurre distrazioni e scegliere il primo passo.</li>
+                <li>Non fa diagnosi, non interpreta sintomi, non prescrive farmaci.</li>
+                <li>Le conversazioni col Coach IA restano private: il tuo terapeuta non le legge.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- THERAPIST -->
+      <div id="page-therapist" class="page">
+        <span class="page-badge" style="background:hsl(262,52%,55%)">Area Terapeuta</span>
+        <h1 id="therapist-greeting">Bentornato/a.</h1>
+        <p class="page-desc">Vista clinica non diagnostica sui pazienti collegati.</p>
+        <div class="grid-4" style="margin-bottom:18px">
+          <div class="metric-card"><div class="metric-label">Pazienti collegati</div><div class="metric-value" id="therapist-count-patients">—</div><div class="metric-hint">Attivi</div></div>
+          <div class="metric-card"><div class="metric-label">Da monitorare</div><div class="metric-value" id="therapist-watch-count">—</div><div class="metric-hint">Andamento in calo, ultimi 7gg</div></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Pazienti</div><div class="card-desc">Andamento reale degli ultimi 7 giorni. Clicca un paziente per aprire la chat.</div>
+          <div id="therapist-patients-list"></div>
+        </div>
+      </div>
+
+      <!-- NOTE PER IL TERAPEUTA (vista terapeuta) -->
+      <div id="page-therapist-chat" class="page">
+        <span class="page-badge" style="background:hsl(262,52%,55%)">Area Terapeuta</span>
+        <div class="btn-row">
+          <button class="btn" onclick="navigateTo('therapist')"><i class="ti ti-arrow-left"></i>Torna ai pazienti</button>
+          <button class="btn" style="background:hsl(262,52%,55%);color:#fff;border-color:hsl(262,52%,55%)" onclick="navigateTo('therapist-review')"><i class="ti ti-video"></i>Vai alla Revisione</button>
+        </div>
+        <h1 id="therapist-chat-title">Note di —</h1>
+        <p class="page-desc">Note scritte dal paziente per te: non è una chat in tempo reale, il paziente sa che le leggerai con calma, in genere prima del prossimo appuntamento. Non è un canale per le emergenze.</p>
+        <div class="grid-2">
+          <div class="card"><div class="card-title">Note del paziente</div><div class="card-desc"></div>
+            <div id="therapist-messages-list"></div>
+          </div>
+          <div class="card"><div class="card-title">Aggiungi una nota</div><div class="card-desc"></div>
+            <textarea id="therapist-new-msg" rows="7" placeholder="Scrivi una nota per il paziente..."></textarea>
+            <button class="btn" style="margin-top:14px;background:hsl(262,52%,55%);color:#fff" onclick="sendTherapistMsg()"><i class="ti ti-device-floppy"></i>Salva nota</button>
+            <div class="feedback" id="therapist-msg-sent"><i class="ti ti-check"></i> Nota salvata</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Diario dello stato d'animo</div>
+          <div class="card-desc">Le voci di check-in del paziente, dalla più recente.</div>
+          <div id="therapist-checkin-diary-list"></div>
+        </div>
+      </div>
+
+      <!-- REVISIONE (vista terapeuta: propone orari per un paziente specifico) -->
+      <div id="page-therapist-review" class="page">
+        <span class="page-badge" style="background:hsl(262,52%,55%)">Area Terapeuta</span>
+        <div class="btn-row">
+          <button class="btn" onclick="navigateTo('therapist-chat')"><i class="ti ti-arrow-left"></i>Torna alle note</button>
+        </div>
+        <h1 id="therapist-review-title">Revisione con —</h1>
+        <p class="page-desc">Proponi un orario da 15 minuti; il paziente potrà confermarlo o rifiutarlo. La videochiamata dura esattamente 15 minuti e si chiude da sola allo scadere del tempo.</p>
+
+        <div class="card">
+          <div class="card-title">Proponi un nuovo orario</div><div class="card-desc"></div>
+          <div class="agenda-add-form" style="margin-top:0;padding-top:0;border-top:none">
+            <div class="field field-time"><label for="review-new-date">Data</label><input type="date" id="review-new-date"></div>
+            <div class="field field-time"><label for="review-new-time">Orario</label><input type="time" id="review-new-time" value="15:00"></div>
+            <div class="field field-cat">
+              <label for="review-new-cadence">Cadenza</label>
+              <select id="review-new-cadence">
+                <option value="once">Una tantum</option>
+                <option value="weekly">Settimanale</option>
+                <option value="biweekly">Bisettimanale</option>
+                <option value="monthly">Mensile</option>
+              </select>
+            </div>
+            <button class="btn" style="background:hsl(262,52%,55%);color:#fff" onclick="proposeReviewSlot()"><i class="ti ti-plus"></i>Proponi</button>
+          </div>
+        </div>
+
+        <div class="card" id="therapist-next-review-card" style="display:none">
+          <div class="card-title">Prossima revisione confermata</div><div class="card-desc"></div>
+          <div id="therapist-next-review"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Tutte le proposte</div><div class="card-desc">Più recenti in fondo.</div>
+          <div id="therapist-review-list"></div>
+        </div>
+      </div>
+
+      <!-- NOTE PER IL TERAPEUTA (paziente) -->
+      <div id="page-messaggi" class="page">
+        <span class="page-badge">Il tuo terapeuta</span><h1 id="messaggi-title">Note</h1>
+        <p class="page-desc">Scrivi qui pensieri, aggiornamenti o domande per il tuo terapeuta. Non è una chat in tempo reale: le note restano qui e il tuo terapeuta le leggerà con calma, in genere prima del vostro prossimo appuntamento. Non è un servizio di emergenza: per urgenze contatta i servizi sanitari.</p>
+        <div class="grid-2">
+          <div class="card"><div class="card-title">Le tue note</div><div class="card-desc"></div>
+            <div id="messages-list"></div>
+          </div>
+          <div class="card"><div class="card-title">Nuova nota</div><div class="card-desc"></div>
+            <textarea id="new-msg" rows="7" placeholder="Scrivi una nota per il tuo terapeuta..."></textarea>
+            <button class="btn btn-primary" style="margin-top:14px" onclick="sendMsg()"><i class="ti ti-device-floppy"></i>Salva nota</button>
+            <div class="feedback" id="msg-sent"><i class="ti ti-check"></i> Nota salvata</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AREA GENITORE: elenco figli/e collegati -->
+      <div id="page-parent" class="page">
+        <span class="page-badge" style="background:hsl(262,52%,55%)">Area Genitore</span>
+        <h1 id="parent-greeting">Bentornato/a.</h1>
+        <p class="page-desc">Vista di sola lettura su quello che tuo figlio/a condivide: non fa diagnosi né sostituisce il terapeuta.</p>
+        <div class="card">
+          <div class="card-title">Account collegati</div><div class="card-desc">Tocca un nome per vedere i dettagli condivisi.</div>
+          <div id="parent-children-list"></div>
+        </div>
+      </div>
+
+      <!-- AREA GENITORE: dettaglio di un figlio/a -->
+      <div id="page-parent-child" class="page">
+        <span class="page-badge" style="background:hsl(262,52%,55%)">Area Genitore</span>
+        <div class="btn-row">
+          <button class="btn" onclick="navigateTo('parent')"><i class="ti ti-arrow-left"></i>Torna all'elenco</button>
+        </div>
+        <h1 id="parent-child-title">—</h1>
+        <p class="page-desc">Dati condivisi con te da questo account. Le percentuali e le note riflettono solo ciò che è stato inserito realmente nell'app.</p>
+
+        <div class="grid-4" style="margin-bottom:18px">
+          <div class="metric-card"><div class="metric-label">Streak</div><div class="metric-value" id="parent-child-streak">—</div><div class="metric-hint">Giorni consecutivi</div></div>
+          <div class="metric-card"><div class="metric-label">Routine oggi</div><div class="metric-value" id="parent-child-routine-pct">—</div><div class="metric-hint">Completamento</div></div>
+          <div class="metric-card"><div class="metric-label">Altre attività</div><div class="metric-value" id="parent-child-other-pct">—</div><div class="metric-hint">Completamento</div></div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">Agenda di oggi</div><div class="card-desc"></div>
+            <div id="parent-child-agenda"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Diario dello stato d'animo</div><div class="card-desc">Le voci di check-in, dalla più recente.</div>
+            <div id="parent-child-checkins"></div>
+          </div>
+        </div>
+
+        <div class="card" id="parent-child-messages-section" style="display:none">
+          <div class="card-title">Note con <span id="parent-child-therapist-name">—</span></div>
+          <div class="card-desc">Condivise con te su richiesta della famiglia; nel resto dell'app restano private tra paziente e terapeuta.</div>
+          <div id="parent-child-messages"></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ===================== VIDEOCHIAMATA REVISIONE (overlay, sopra qualsiasi pagina) ===================== -->
+<div id="call-overlay" class="call-overlay" style="display:none">
+  <div class="call-top">
+    <div class="call-countdown-wrap"><i class="ti ti-clock-play"></i><span id="call-countdown">15:00</span></div>
+    <div class="call-status" id="call-status">Connessione in corso...</div>
+    <button class="btn call-end-btn" onclick="closeReviewCall()"><i class="ti ti-phone-off"></i>Termina chiamata</button>
+  </div>
+  <div class="call-videos">
+    <video id="call-remote-video" class="call-video-remote" autoplay playsinline></video>
+    <video id="call-local-video" class="call-video-local" autoplay playsinline muted></video>
+  </div>
+  <div class="call-controls">
+    <button class="call-ctrl-btn" id="call-toggle-mic" onclick="toggleMic()" aria-label="Microfono"><i class="ti ti-microphone"></i></button>
+    <button class="call-ctrl-btn" id="call-toggle-cam" onclick="toggleCam()" aria-label="Videocamera"><i class="ti ti-video"></i></button>
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/ui.js"></script>
+<script src="/js/call.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>
