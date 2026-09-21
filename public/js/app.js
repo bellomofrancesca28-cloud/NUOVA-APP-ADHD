@@ -208,7 +208,7 @@ async function showPairing() {
     const list = document.getElementById('pairing-list');
     list.innerHTML = '';
     if (!therapists.length) {
-      list.innerHTML = '<p class="empty-hint">Nessun terapeuta disponibile al momento. Puoi comunque provare l\'assegnazione casuale più tardi, oppure chiedere a chi gestisce l\'app di aggiungerne uno.</p>';
+      list.innerHTML = '<p class="empty-hint">Nessun tutor disponibile al momento. Puoi comunque provare l\'assegnazione casuale più tardi, oppure chiedere a chi gestisce l\'app di aggiungerne uno.</p>';
       return;
     }
     therapists.forEach(t => {
@@ -319,7 +319,7 @@ async function enterApp() {
   const displayName = state.user.nickname || state.user.name;
   document.getElementById('acct-name-el').textContent = displayName;
   document.getElementById('dd-name').textContent = displayName;
-  document.getElementById('dd-role').textContent = state.user.role === 'therapist' ? (state.user.specialty || 'Terapeuta') : (state.user.role === 'parent' ? 'Genitore' : (state.user.job || 'Paziente'));
+  document.getElementById('dd-role').textContent = state.user.role === 'therapist' ? (state.user.specialty || 'Tutor') : (state.user.role === 'parent' ? 'Genitore' : (state.user.job || 'Utente'));
 
   if (state.user.role === 'patient') {
     document.getElementById('home-greeting').textContent = `Ciao ${displayName}.`;
@@ -329,7 +329,7 @@ async function enterApp() {
     document.getElementById('home-sub').textContent = 'Qui trovi i tuoi figli/e collegati e quello che condividono.';
   } else {
     document.getElementById('home-greeting').textContent = `Bentornato/a, ${displayName}.`;
-    document.getElementById('home-sub').textContent = 'Qui trovi i tuoi pazienti collegati e il loro andamento reale.';
+    document.getElementById('home-sub').textContent = 'Qui trovi i tuoi utenti in carico e il loro andamento reale.';
   }
 
   navigateTo('home');
@@ -1369,8 +1369,8 @@ function renderMessageRow(container, m, myRole) {
   const row = document.createElement('div'); row.className = 'msg-row' + (mine ? ' msg-mine' : '');
   let senderLabel;
   if (mine) senderLabel = 'Tu';
-  else if (m.sender_role === 'therapist') senderLabel = state.therapistLink ? state.therapistLink.therapist_name : 'Terapeuta';
-  else senderLabel = state.currentTherapistChatPatientName || 'Paziente';
+  else if (m.sender_role === 'therapist') senderLabel = state.therapistLink ? state.therapistLink.therapist_name : 'Tutor';
+  else senderLabel = state.currentTherapistChatPatientName || 'Utente';
   row.innerHTML = `<div class="msg-header"><span>${escapeHtml(senderLabel)}</span><span>${new Date(m.created_at).toLocaleString('it-IT')}</span></div><div class="msg-body">${escapeHtml(m.body)}</div>`;
   container.appendChild(row);
 }
@@ -1400,7 +1400,7 @@ async function loadTherapistPage() {
 
   const list = document.getElementById('therapist-patients-list'); list.innerHTML = '';
   if (!patients.length) {
-    list.innerHTML = '<p class="empty-hint">Nessun paziente ancora collegato al tuo account.</p>';
+    list.innerHTML = '<p class="empty-hint">Nessun utente ancora collegato al tuo account.</p>';
     document.getElementById('therapist-watch-count').textContent = '0';
     return;
   }
@@ -1575,7 +1575,7 @@ async function cancelReviewSlot(id) {
 
 // ----- Vista terapeuta (per un paziente specifico) -----
 async function loadTherapistReviewPage() {
-  const name = state.currentTherapistChatPatientName || 'paziente';
+  const name = state.currentTherapistChatPatientName || 'utente';
   document.getElementById('therapist-review-title').textContent = 'Revisione con ' + name;
   const dateInput = document.getElementById('review-new-date');
   if (!dateInput.value) dateInput.value = todayIso();
@@ -1598,7 +1598,7 @@ async function loadTherapistReviewPage() {
 
   const listEl = document.getElementById('therapist-review-list');
   listEl.innerHTML = '';
-  if (!slots.length) { listEl.innerHTML = '<p class="empty-hint">Non hai ancora proposto nessun orario a questo paziente.</p>'; return; }
+  if (!slots.length) { listEl.innerHTML = '<p class="empty-hint">Non hai ancora proposto nessun orario a questo utente.</p>'; return; }
   slots.slice().reverse().forEach(s => {
     const canCancel = s.status === 'proposed' || s.status === 'confirmed';
     listEl.appendChild(reviewSlotRow(s, canCancel ? { showCancel: true, onCancel: () => cancelReviewSlot(s.id) } : {}));

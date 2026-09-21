@@ -52,7 +52,7 @@
           <button type="button" class="role-toggle-btn active" id="role-btn-teen" onclick="setRegisterRole('teen')"><i class="ti ti-user"></i>14-17</button>
           <button type="button" class="role-toggle-btn" id="role-btn-adult" onclick="setRegisterRole('adult')"><i class="ti ti-user"></i>&gt;18</button>
           <button type="button" class="role-toggle-btn" id="role-btn-parent" onclick="setRegisterRole('parent')"><i class="ti ti-users"></i>Genitore</button>
-          <button type="button" class="role-toggle-btn" id="role-btn-therapist" onclick="setRegisterRole('therapist')"><i class="ti ti-stethoscope"></i>Terapeuta</button>
+          <button type="button" class="role-toggle-btn" id="role-btn-therapist" onclick="setRegisterRole('therapist')"><i class="ti ti-stethoscope"></i>Tutor</button>
         </div>
       </div>
       <div class="form-group"><label for="reg-name">Nome</label><input type="text" id="reg-name" required></div>
@@ -66,7 +66,7 @@
       <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doRegister()"><i class="ti ti-user-plus"></i>Crea account</button>
     </form>
 
-    <p class="auth-disclaimer">Questa app non fa diagnosi, non prescrive farmaci e non sostituisce il tuo terapeuta o i servizi di emergenza.</p>
+    <p class="auth-disclaimer">Questa app non fa diagnosi, non prescrive farmaci e non sostituisce il tuo tutor o i servizi di emergenza.</p>
   </div>
 </div>
 
@@ -162,7 +162,7 @@
 <!-- ===================== SCELTA TERAPEUTA (solo pazienti non ancora collegati) ===================== -->
 <div id="view-pairing" class="auth-wrap" style="display:none">
   <div class="auth-card" style="max-width:560px">
-    <h1 style="font-size:20px;margin-bottom:6px">Scegli il tuo terapeuta</h1>
+    <h1 style="font-size:20px;margin-bottom:6px">Scegli il tuo tutor</h1>
     <p class="page-desc" style="margin-bottom:18px">Puoi scegliere un professionista dall'elenco, oppure lasciare che l'app ne assegni uno automaticamente. Potrai vedere la sua chat solo dopo il collegamento.</p>
     <div id="pairing-list"></div>
     <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:14px" onclick="pairRandom()"><i class="ti ti-dice"></i>Assegnazione casuale</button>
@@ -174,7 +174,7 @@
     </div>
 
     <div class="form-group">
-      <label for="pairing-code">Hai già il codice del tuo terapeuta?</label>
+      <label for="pairing-code">Hai già il codice del tuo tutor?</label>
       <input type="text" id="pairing-code" placeholder="Es. AB23CD" style="text-transform:uppercase" maxlength="6">
     </div>
     <button class="btn" style="width:100%;justify-content:center" onclick="pairByCode()"><i class="ti ti-link"></i>Collega con il codice</button>
@@ -212,7 +212,7 @@
       </div>
       <div class="dropdown-item" onclick="navigateTo('profilo')"><i class="ti ti-user-circle"></i>Modifica profilo</div>
       <div class="dropdown-item role-patient" onclick="navigateTo('coach')"><i class="ti ti-sparkles"></i>Vai al Coach IA</div>
-      <div class="dropdown-item role-patient" onclick="navigateTo('messaggi')"><i class="ti ti-user-cog"></i>Il tuo terapeuta</div>
+      <div class="dropdown-item role-patient" onclick="navigateTo('messaggi')"><i class="ti ti-user-cog"></i>Il tuo tutor</div>
       <div class="dropdown-item" onclick="doLogout()"><i class="ti ti-logout"></i>Esci</div>
     </div>
   </div>
@@ -227,7 +227,7 @@
       <button class="nav-item active" data-page="home" onclick="navigateTo('home')"><span class="nav-icon-chip chip-dashboard"><i class="ti ti-layout-dashboard"></i></span>Dashboard</button>
       <button class="nav-item role-patient" data-page="timer" onclick="navigateTo('timer')"><span class="nav-icon-chip chip-timer"><i class="ti ti-clock-play"></i></span>Timer focus</button>
       <button class="nav-item role-patient" data-page="coach" onclick="navigateTo('coach')"><span class="nav-icon-chip chip-coach"><i class="ti ti-sparkles"></i></span>Coach IA</button>
-      <button class="nav-item role-patient" data-page="messaggi" onclick="navigateTo('messaggi')"><span class="nav-icon-chip chip-messaggi"><i class="ti ti-user-cog"></i></span>Il tuo terapeuta</button>
+      <button class="nav-item role-patient" data-page="messaggi" onclick="navigateTo('messaggi')"><span class="nav-icon-chip chip-messaggi"><i class="ti ti-user-cog"></i></span>Il tuo tutor</button>
       <button class="nav-item role-patient" data-page="revisione" onclick="navigateTo('revisione')"><span class="nav-icon-chip chip-revisione"><i class="ti ti-video"></i></span>Revisione</button>
       <div class="nav-section role-patient" id="nav-section-dashboard">Dashboard</div>
       <button class="nav-item role-patient" data-page="calendario" onclick="navigateTo('calendario')"><span class="nav-icon-chip chip-routine"><i class="ti ti-calendar"></i></span>Calendario</button>
@@ -238,9 +238,9 @@
     </nav>
     <div class="sidebar-footer">
       <div class="sidebar-badge">Confini chiari</div>
-      <p class="role-patient">Non diagnostica, non prescrive farmaci e non sostituisce terapeuta o servizi di emergenza.</p>
+      <p class="role-patient">Non diagnostica, non prescrive farmaci e non sostituisce tutor o servizi di emergenza.</p>
       <p class="role-therapist" style="display:none">Vista clinica non diagnostica: supporto all'organizzazione, non sostituisce la cartella clinica.</p>
-      <p class="role-parent" style="display:none">Vista di sola lettura su ciò che tuo figlio/a condivide: non fa diagnosi né sostituisce il terapeuta.</p>
+      <p class="role-parent" style="display:none">Vista di sola lettura su ciò che tuo figlio/a condivide: non fa diagnosi né sostituisce il tutor.</p>
     </div>
   </aside>
 
@@ -260,7 +260,7 @@
         <div class="card">
           <i class="ti ti-shield-check" style="color:var(--primary);font-size:26px;margin-bottom:10px"></i>
           <div class="card-title">Guardrail MVP</div>
-          <p style="font-size:13px;color:var(--muted-fg);line-height:1.7;margin-top:6px">L'app non fa diagnosi, non prescrive farmaci, non fa terapia e non sostituisce terapeuta, medico o servizi di emergenza. I dati dei pazienti sono visibili solo al proprio terapeuta collegato, mai ad altri pazienti o terapeuti.</p>
+          <p style="font-size:13px;color:var(--muted-fg);line-height:1.7;margin-top:6px">L'app non fa diagnosi, non prescrive farmaci, non fa terapia e non sostituisce tutor, medico o servizi di emergenza. I dati degli utenti sono visibili solo al proprio tutor collegato, mai ad altri utenti o tutor.</p>
         </div>
       </div>
 
@@ -328,17 +328,17 @@
             <div class="form-group role-patient"><label for="prof-job">Professione</label><input type="text" id="prof-job" placeholder="Es. Designer, Studente, Insegnante..."></div>
             <div class="form-group role-patient">
               <label>Codice per un genitore</label>
-              <p class="card-desc" style="margin:0 0 8px">Condividi questo codice con un genitore per fargli vedere quello che condividi (agenda, check-in, statistiche e note al terapeuta).</p>
+              <p class="card-desc" style="margin:0 0 8px">Condividi questo codice con un genitore per fargli vedere quello che condividi (agenda, check-in, statistiche e note al tutor).</p>
               <div style="display:flex;align-items:center;gap:10px">
                 <span id="prof-link-code-box" style="font-family:monospace;font-size:18px;font-weight:600;letter-spacing:2px;background:hsl(172,59%,91%);color:var(--primary);padding:6px 14px;border-radius:8px">Nessun codice generato</span>
                 <button type="button" class="btn" onclick="generateLinkCode()"><i class="ti ti-refresh"></i>Genera nuovo</button>
               </div>
             </div>
             <div class="form-group role-therapist" style="display:none"><label for="prof-specialty">Specializzazione</label><input type="text" id="prof-specialty"></div>
-            <div class="form-group role-therapist" style="display:none"><label for="prof-bio">Bio (visibile ai pazienti in cerca di un terapeuta)</label><textarea id="prof-bio" rows="3"></textarea></div>
+            <div class="form-group role-therapist" style="display:none"><label for="prof-bio">Bio (visibile agli utenti in cerca di un tutor)</label><textarea id="prof-bio" rows="3"></textarea></div>
             <div class="form-group role-therapist" style="display:none">
-              <label>Codice per un paziente</label>
-              <p class="card-desc" style="margin:0 0 8px">Condividi questo codice con un paziente che vuole collegarsi direttamente a te, senza passare dall'elenco o dall'assegnazione casuale.</p>
+              <label>Codice per un utente</label>
+              <p class="card-desc" style="margin:0 0 8px">Condividi questo codice con un utente che vuole collegarsi direttamente a te, senza passare dall'elenco o dall'assegnazione casuale.</p>
               <div style="display:flex;align-items:center;gap:10px">
                 <span id="prof-therapist-link-code-box" style="font-family:monospace;font-size:18px;font-weight:600;letter-spacing:2px;background:hsl(172,59%,91%);color:var(--primary);padding:6px 14px;border-radius:8px">Nessun codice generato</span>
                 <button type="button" class="btn" onclick="generateTherapistLinkCode()"><i class="ti ti-refresh"></i>Genera nuovo</button>
@@ -357,7 +357,7 @@
         <p class="page-desc">La dashboard raccoglie check-in, routine e attività di oggi.</p>
         <div class="btn-row">
           <button class="btn btn-primary" id="dash-checkin-btn" onclick="navigateTo('checkin')"><i class="ti ti-plus"></i>Nuovo check-in</button>
-          <button class="btn" onclick="navigateTo('messaggi')"><i class="ti ti-message"></i>Il tuo terapeuta</button>
+          <button class="btn" onclick="navigateTo('messaggi')"><i class="ti ti-message"></i>Il tuo tutor</button>
         </div>
 
         <div class="subtab-bar" id="dash-subtab-bar">
@@ -554,8 +554,8 @@
 
       <!-- REVISIONE (paziente) -->
       <div id="page-revisione" class="page">
-        <span class="page-badge" id="revisione-badge">Revisione</span><h1>Revisione con il tuo terapeuta</h1>
-        <p class="page-desc">Un breve incontro video da 15 minuti per fare il punto insieme. Il terapeuta propone l'orario, tu confermi o rifiuti.</p>
+        <span class="page-badge" id="revisione-badge">Revisione</span><h1>Revisione con il tuo tutor</h1>
+        <p class="page-desc">Un breve incontro video da 15 minuti per fare il punto insieme. Il tutor propone l'orario, tu confermi o rifiuti.</p>
 
         <div class="card" id="revisione-next-card" style="display:none">
           <div class="card-title">Prossima revisione confermata</div><div class="card-desc"></div>
@@ -563,7 +563,7 @@
         </div>
 
         <div class="card" id="revisione-pending-card" style="display:none">
-          <div class="card-title">In attesa della tua risposta</div><div class="card-desc">Il tuo terapeuta ha proposto questi orari.</div>
+          <div class="card-title">In attesa della tua risposta</div><div class="card-desc">Il tuo tutor ha proposto questi orari.</div>
           <div id="revisione-pending"></div>
         </div>
 
@@ -585,7 +585,7 @@
         </div>
         <div class="card" style="max-width:700px">
           <div class="card-title">Il tuo diario</div>
-          <div class="card-desc">Lo stato d'animo nel tempo, dal più recente. Visibile anche al tuo terapeuta e a un genitore collegato.</div>
+          <div class="card-desc">Lo stato d'animo nel tempo, dal più recente. Visibile anche al tuo tutor e a un genitore collegato.</div>
           <div id="checkin-diary-list"></div>
         </div>
       </div>
@@ -631,7 +631,7 @@
                 <li>Aiuta con organizzazione, lavoro, routine e micro-obiettivi.</li>
                 <li>Aiuta a ridurre distrazioni e scegliere il primo passo.</li>
                 <li>Non fa diagnosi, non interpreta sintomi, non prescrive farmaci.</li>
-                <li>Le conversazioni col Coach IA restano private: il tuo terapeuta non le legge.</li>
+                <li>Le conversazioni col Coach IA restano private: il tuo tutor non le legge.</li>
               </ul>
             </div>
           </div>
@@ -640,53 +640,53 @@
 
       <!-- THERAPIST -->
       <div id="page-therapist" class="page">
-        <span class="page-badge" style="background:hsl(262,52%,55%)">Area Terapeuta</span>
+        <span class="page-badge" style="background:hsl(262,52%,55%)">Area Tutor</span>
         <h1 id="therapist-greeting">Bentornato/a.</h1>
-        <p class="page-desc">Vista clinica non diagnostica sui pazienti collegati.</p>
+        <p class="page-desc">Vista clinica non diagnostica sugli utenti in carico.</p>
         <div class="grid-4" style="margin-bottom:18px">
-          <div class="metric-card"><div class="metric-label">Pazienti collegati</div><div class="metric-value" id="therapist-count-patients">—</div><div class="metric-hint">Attivi</div></div>
+          <div class="metric-card"><div class="metric-label">Utenti in carico</div><div class="metric-value" id="therapist-count-patients">—</div><div class="metric-hint">Attivi</div></div>
           <div class="metric-card"><div class="metric-label">Da monitorare</div><div class="metric-value" id="therapist-watch-count">—</div><div class="metric-hint">Andamento in calo, ultimi 7gg</div></div>
         </div>
         <div class="card">
-          <div class="card-title">Pazienti</div><div class="card-desc">Andamento reale degli ultimi 7 giorni. Clicca un paziente per aprire la chat.</div>
+          <div class="card-title">Utenti</div><div class="card-desc">Andamento reale degli ultimi 7 giorni. Clicca un utente per aprire la chat.</div>
           <div id="therapist-patients-list"></div>
         </div>
       </div>
 
       <!-- NOTE PER IL TERAPEUTA (vista terapeuta) -->
       <div id="page-therapist-chat" class="page">
-        <span class="page-badge" style="background:hsl(262,52%,55%)">Area Terapeuta</span>
+        <span class="page-badge" style="background:hsl(262,52%,55%)">Area Tutor</span>
         <div class="btn-row">
-          <button class="btn" onclick="navigateTo('therapist')"><i class="ti ti-arrow-left"></i>Torna ai pazienti</button>
+          <button class="btn" onclick="navigateTo('therapist')"><i class="ti ti-arrow-left"></i>Torna agli utenti</button>
           <button class="btn" style="background:hsl(262,52%,55%);color:#fff;border-color:hsl(262,52%,55%)" onclick="navigateTo('therapist-review')"><i class="ti ti-video"></i>Vai alla Revisione</button>
         </div>
         <h1 id="therapist-chat-title">Note di —</h1>
-        <p class="page-desc">Note scritte dal paziente per te: non è una chat in tempo reale, il paziente sa che le leggerai con calma, in genere prima del prossimo appuntamento. Non è un canale per le emergenze.</p>
+        <p class="page-desc">Note scritte dall'utente per te: non è una chat in tempo reale, l'utente sa che le leggerai con calma, in genere prima del prossimo appuntamento. Non è un canale per le emergenze.</p>
         <div class="grid-2">
-          <div class="card"><div class="card-title">Note del paziente</div><div class="card-desc"></div>
+          <div class="card"><div class="card-title">Note dell'utente</div><div class="card-desc"></div>
             <div id="therapist-messages-list"></div>
           </div>
           <div class="card"><div class="card-title">Aggiungi una nota</div><div class="card-desc"></div>
-            <textarea id="therapist-new-msg" rows="7" placeholder="Scrivi una nota per il paziente..."></textarea>
+            <textarea id="therapist-new-msg" rows="7" placeholder="Scrivi una nota per l'utente..."></textarea>
             <button class="btn" style="margin-top:14px;background:hsl(262,52%,55%);color:#fff" onclick="sendTherapistMsg()"><i class="ti ti-device-floppy"></i>Salva nota</button>
             <div class="feedback" id="therapist-msg-sent"><i class="ti ti-check"></i> Nota salvata</div>
           </div>
         </div>
         <div class="card">
           <div class="card-title">Diario dello stato d'animo</div>
-          <div class="card-desc">Le voci di check-in del paziente, dalla più recente.</div>
+          <div class="card-desc">Le voci di check-in dell'utente, dalla più recente.</div>
           <div id="therapist-checkin-diary-list"></div>
         </div>
       </div>
 
       <!-- REVISIONE (vista terapeuta: propone orari per un paziente specifico) -->
       <div id="page-therapist-review" class="page">
-        <span class="page-badge" style="background:hsl(262,52%,55%)">Area Terapeuta</span>
+        <span class="page-badge" style="background:hsl(262,52%,55%)">Area Tutor</span>
         <div class="btn-row">
           <button class="btn" onclick="navigateTo('therapist-chat')"><i class="ti ti-arrow-left"></i>Torna alle note</button>
         </div>
         <h1 id="therapist-review-title">Revisione con —</h1>
-        <p class="page-desc">Proponi un orario da 15 minuti; il paziente potrà confermarlo o rifiutarlo. La videochiamata dura esattamente 15 minuti e si chiude da sola allo scadere del tempo.</p>
+        <p class="page-desc">Proponi un orario da 15 minuti; l'utente potrà confermarlo o rifiutarlo. La videochiamata dura esattamente 15 minuti e si chiude da sola allo scadere del tempo.</p>
 
         <div class="card">
           <div class="card-title">Proponi un nuovo orario</div><div class="card-desc"></div>
@@ -719,14 +719,14 @@
 
       <!-- NOTE PER IL TERAPEUTA (paziente) -->
       <div id="page-messaggi" class="page">
-        <span class="page-badge">Il tuo terapeuta</span><h1 id="messaggi-title">Note</h1>
-        <p class="page-desc">Scrivi qui pensieri, aggiornamenti o domande per il tuo terapeuta. Non è una chat in tempo reale: le note restano qui e il tuo terapeuta le leggerà con calma, in genere prima del vostro prossimo appuntamento. Non è un servizio di emergenza: per urgenze contatta i servizi sanitari.</p>
+        <span class="page-badge">Il tuo tutor</span><h1 id="messaggi-title">Note</h1>
+        <p class="page-desc">Scrivi qui pensieri, aggiornamenti o domande per il tuo tutor. Non è una chat in tempo reale: le note restano qui e il tuo tutor le leggerà con calma, in genere prima del vostro prossimo appuntamento. Non è un servizio di emergenza: per urgenze contatta i servizi sanitari.</p>
         <div class="grid-2">
           <div class="card"><div class="card-title">Le tue note</div><div class="card-desc"></div>
             <div id="messages-list"></div>
           </div>
           <div class="card"><div class="card-title">Nuova nota</div><div class="card-desc"></div>
-            <textarea id="new-msg" rows="7" placeholder="Scrivi una nota per il tuo terapeuta..."></textarea>
+            <textarea id="new-msg" rows="7" placeholder="Scrivi una nota per il tuo tutor..."></textarea>
             <button class="btn btn-primary" style="margin-top:14px" onclick="sendMsg()"><i class="ti ti-device-floppy"></i>Salva nota</button>
             <div class="feedback" id="msg-sent"><i class="ti ti-check"></i> Nota salvata</div>
           </div>
@@ -737,7 +737,7 @@
       <div id="page-parent" class="page">
         <span class="page-badge" style="background:hsl(262,52%,55%)">Area Genitore</span>
         <h1 id="parent-greeting">Bentornato/a.</h1>
-        <p class="page-desc">Vista di sola lettura su quello che tuo figlio/a condivide: non fa diagnosi né sostituisce il terapeuta.</p>
+        <p class="page-desc">Vista di sola lettura su quello che tuo figlio/a condivide: non fa diagnosi né sostituisce il tutor.</p>
         <div class="card">
           <div class="card-title">Account collegati</div><div class="card-desc">Tocca un nome per vedere i dettagli condivisi.</div>
           <div id="parent-children-list"></div>
@@ -772,7 +772,7 @@
 
         <div class="card" id="parent-child-messages-section" style="display:none">
           <div class="card-title">Note con <span id="parent-child-therapist-name">—</span></div>
-          <div class="card-desc">Condivise con te su richiesta della famiglia; nel resto dell'app restano private tra paziente e terapeuta.</div>
+          <div class="card-desc">Condivise con te su richiesta della famiglia; nel resto dell'app restano private tra utente e tutor.</div>
           <div id="parent-child-messages"></div>
         </div>
       </div>

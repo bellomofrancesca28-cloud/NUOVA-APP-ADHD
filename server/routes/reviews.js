@@ -22,7 +22,7 @@ function resolvePair(req) {
 
 router.get('/', requireAuth, (req, res) => {
   const pair = resolvePair(req);
-  if (!pair) return res.status(403).json({ error: 'Nessun collegamento paziente-terapeuta trovato.' });
+  if (!pair) return res.status(403).json({ error: 'Nessun collegamento paziente-tutor trovato.' });
   const slots = db.prepare(`
     SELECT * FROM review_slots WHERE patient_id = ? AND therapist_id = ?
     ORDER BY slot_date ASC, slot_time ASC
@@ -34,7 +34,7 @@ router.get('/', requireAuth, (req, res) => {
 // paziente potrà solo confermare o rifiutare quanto proposto.
 router.post('/', requireAuth, requireRole('therapist'), (req, res) => {
   const pair = resolvePair(req);
-  if (!pair) return res.status(403).json({ error: 'Paziente non collegato al tuo account.' });
+  if (!pair) return res.status(403).json({ error: 'Utente non collegato al tuo account.' });
   const { date, time, cadence } = req.body || {};
   if (!date || !time) return res.status(400).json({ error: 'Indica data e orario.' });
   const validCadence = ['once', 'weekly', 'biweekly', 'monthly'].includes(cadence) ? cadence : 'once';
@@ -48,7 +48,7 @@ router.post('/', requireAuth, requireRole('therapist'), (req, res) => {
 
 router.patch('/:id', requireAuth, (req, res) => {
   const pair = resolvePair(req);
-  if (!pair) return res.status(403).json({ error: 'Nessun collegamento paziente-terapeuta trovato.' });
+  if (!pair) return res.status(403).json({ error: 'Nessun collegamento paziente-tutor trovato.' });
   const slot = db.prepare('SELECT * FROM review_slots WHERE id = ? AND patient_id = ? AND therapist_id = ?')
     .get(req.params.id, pair.patientId, pair.therapistId);
   if (!slot) return res.status(404).json({ error: 'Proposta non trovata.' });
@@ -58,7 +58,7 @@ router.patch('/:id', requireAuth, (req, res) => {
     return res.status(400).json({ error: 'Stato non valido.' });
   }
   if ((status === 'confirmed' || status === 'declined') && req.user.role !== 'patient') {
-    return res.status(403).json({ error: 'Solo il paziente può confermare o rifiutare una proposta.' });
+    return res.status(403).json({ error: 'Solo l\'utente può confermare o rifiutare una proposta.' });
   }
   if ((status === 'confirmed' || status === 'declined') && slot.status !== 'proposed') {
     return res.status(409).json({ error: 'Questa proposta non è più in attesa di risposta.' });

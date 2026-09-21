@@ -33,14 +33,14 @@ function alreadyPaired(patientId) {
 
 router.post('/pair', requireAuth, requireRole('patient'), (req, res) => {
   if (alreadyPaired(req.user.id)) {
-    return res.status(409).json({ error: 'Sei già collegato a un terapeuta.' });
+    return res.status(409).json({ error: 'Sei già collegato a un tutor.' });
   }
   const { therapistId, random, code } = req.body || {};
   let therapist;
   if (code) {
     // Collegamento diretto tramite il codice condiviso dal terapeuta.
     therapist = db.prepare('SELECT id FROM users WHERE link_code = ? AND role = \'therapist\'').get(code.toUpperCase().trim());
-    if (!therapist) return res.status(404).json({ error: 'Codice non valido. Chiedi al tuo terapeuta di generarne uno nuovo dal suo profilo.' });
+    if (!therapist) return res.status(404).json({ error: 'Codice non valido. Chiedi al tuo tutor di generarne uno nuovo dal suo profilo.' });
   } else if (random) {
     // Assegnazione casuale: prendiamo il terapeuta con meno pazienti collegati
     // (evita di sovraccaricare sempre lo stesso), e tra i pari scegliamo a caso.
@@ -48,14 +48,14 @@ router.post('/pair', requireAuth, requireRole('patient'), (req, res) => {
       SELECT u.id, (SELECT COUNT(*) FROM patient_therapist pt WHERE pt.therapist_id = u.id) as c
       FROM users u WHERE u.role = 'therapist'
     `).all();
-    if (!candidates.length) return res.status(404).json({ error: 'Nessun terapeuta disponibile al momento.' });
+    if (!candidates.length) return res.status(404).json({ error: 'Nessun tutor disponibile al momento.' });
     const minC = Math.min(...candidates.map(c => c.c));
     const pool = candidates.filter(c => c.c === minC);
     therapist = pool[Math.floor(Math.random() * pool.length)];
   } else {
-    if (!therapistId) return res.status(400).json({ error: 'Indica un terapeuta, un codice, oppure richiedi l\'assegnazione casuale.' });
+    if (!therapistId) return res.status(400).json({ error: 'Indica un tutor, un codice, oppure richiedi l\'assegnazione casuale.' });
     therapist = db.prepare('SELECT id FROM users WHERE id = ? AND role = \'therapist\'').get(therapistId);
-    if (!therapist) return res.status(404).json({ error: 'Terapeuta non trovato.' });
+    if (!therapist) return res.status(404).json({ error: 'Tutor non trovato.' });
   }
 
   db.prepare('INSERT INTO patient_therapist (patient_id, therapist_id) VALUES (?, ?)').run(req.user.id, therapist.id);

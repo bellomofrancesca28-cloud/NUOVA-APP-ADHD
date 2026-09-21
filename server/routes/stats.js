@@ -41,7 +41,7 @@ router.get('/detailed', requireAuth, requireRole('patient'), (req, res) => {
 // paziente sia davvero collegato a questo terapeuta (isolamento dei dati).
 router.get('/patient/:patientId', requireAuth, requireRole('therapist'), (req, res) => {
   const link = db.prepare('SELECT * FROM patient_therapist WHERE patient_id = ? AND therapist_id = ?').get(req.params.patientId, req.user.id);
-  if (!link) return res.status(403).json({ error: 'Questo paziente non è collegato al tuo account.' });
+  if (!link) return res.status(403).json({ error: 'Questo utente non è collegato al tuo account.' });
   const patient = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.patientId);
   const summary = stats.fullSummary(patient);
   const trend = stats.checkinTrend(patient.id, 7);

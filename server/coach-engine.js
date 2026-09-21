@@ -20,8 +20,8 @@ const CLINICAL_RX = /diagnos|sintom|disturbo|ho l.?adhd|sono adhd|farmac|medicin
 // clinicamente validato.
 const CRISIS_RX = /suicid|ammazzarmi|farla finita|non voglio pi[uù] vivere|autolesion|farmi del male|tagliarmi|voglio sparire per sempre/i;
 
-const CLINICAL_MSG = "Per questo argomento è importante parlarne con il tuo terapeuta o con un professionista sanitario qualificato. Io posso aiutarti solo a organizzare meglio la giornata e le attività.";
-const CRISIS_MSG = "Quello che mi hai scritto mi fa pensare che tu stia attraversando un momento molto difficile. Non sono lo strumento adatto a gestire questo, e voglio essere onesto invece di provarci comunque: per favore parlane subito con il tuo terapeuta, con un adulto di cui ti fidi, o contatta un servizio di emergenza. Se sei in pericolo immediato chiama il 112.";
+const CLINICAL_MSG = "Per questo argomento è importante parlarne con il tuo tutor o con un professionista sanitario qualificato. Io posso aiutarti solo a organizzare meglio la giornata e le attività.";
+const CRISIS_MSG = "Quello che mi hai scritto mi fa pensare che tu stia attraversando un momento molto difficile. Non sono lo strumento adatto a gestire questo, e voglio essere onesto invece di provarci comunque: per favore parlane subito con il tuo tutor, con un adulto di cui ti fidi, o contatta un servizio di emergenza. Se sei in pericolo immediato chiama il 112.";
 
 const CATEGORY_LABELS = {
   ORGANIZATION: 'Organizzazione', ROUTINE: 'Routine', STUDY: 'Studio', WORK: 'Lavoro',
