@@ -40,7 +40,7 @@ router.get('/detailed', requireAuth, requireRole('patient'), (req, res) => {
 // Vista terapeuta su UN paziente specifico: prima verifichiamo che quel
 // paziente sia davvero collegato a questo terapeuta (isolamento dei dati).
 router.get('/patient/:patientId', requireAuth, requireRole('therapist'), (req, res) => {
-  const link = db.prepare('SELECT * FROM patient_therapist WHERE patient_id = ? AND therapist_id = ?').get(req.params.patientId, req.user.id);
+  const link = db.prepare('SELECT * FROM patient_therapist WHERE patient_id = ? AND therapist_id = ? AND status = \'active\'').get(req.params.patientId, req.user.id);
   if (!link) return res.status(403).json({ error: 'Questo utente non è collegato al tuo account.' });
   const patient = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.patientId);
   const summary = stats.fullSummary(patient);

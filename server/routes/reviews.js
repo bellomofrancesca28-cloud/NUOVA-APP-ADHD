@@ -9,13 +9,13 @@ const router = express.Router();
 // id passato liberamente dal client.
 function resolvePair(req) {
   if (req.user.role === 'patient') {
-    const link = db.prepare('SELECT * FROM patient_therapist WHERE patient_id = ?').get(req.user.id);
+    const link = db.prepare('SELECT * FROM patient_therapist WHERE patient_id = ? AND status = \'active\'').get(req.user.id);
     if (!link) return null;
     return { patientId: req.user.id, therapistId: link.therapist_id };
   }
   const patientId = Number(req.query.patientId || (req.body && req.body.patientId));
   if (!patientId) return null;
-  const link = db.prepare('SELECT * FROM patient_therapist WHERE patient_id = ? AND therapist_id = ?').get(patientId, req.user.id);
+  const link = db.prepare('SELECT * FROM patient_therapist WHERE patient_id = ? AND therapist_id = ? AND status = \'active\'').get(patientId, req.user.id);
   if (!link) return null;
   return { patientId, therapistId: req.user.id };
 }

@@ -73,15 +73,20 @@ router.post('/logout', (req, res) => {
 
 router.get('/me', requireAuth, (req, res) => {
   let therapistLink = null;
+  let pendingTherapistRequest = null;
   if (req.user.role === 'patient') {
     const link = db.prepare(`
       SELECT pt.*, u.name as therapist_name, u.avatar as therapist_avatar, u.specialty as therapist_specialty
       FROM patient_therapist pt JOIN users u ON u.id = pt.therapist_id
       WHERE pt.patient_id = ?
     `).get(req.user.id);
-    therapistLink = link || null;
+    // Il collegamento "vero" (therapistLink) esiste solo dopo che il tutor lo
+    // ha accettato; finché è in attesa lo esponiamo separatamente, così il
+    // frontend può mostrare la schermata di attesa invece della lista tutor.
+    if (link && link.status === 'active') therapistLink = link;
+    else if (link && link.status === 'pending') pendingTherapistRequest = link;
   }
-  res.json({ user: publicUser(req.user), therapistLink });
+  res.json({ user: publicUser(req.user), therapistLink, pendingTherapistRequest });
 });
 
 module.exports = router;

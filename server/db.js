@@ -46,14 +46,17 @@ CREATE TABLE IF NOT EXISTS patient_therapist (
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
--- Collegamento genitore -> figlio/a minorenne: un figlio può avere un solo
--- genitore collegato (patient_id UNIQUE), un genitore può collegare più figli.
+-- Collegamento genitore -> figlio/a minorenne: un figlio/a può avere fino a
+-- due genitori collegati (entrambi con lo stesso codice generato dal figlio),
+-- un genitore può collegare più figli. UNIQUE(parent_id, child_id) impedisce
+-- solo che lo stesso genitore si colleghi due volte allo stesso figlio.
 CREATE TABLE IF NOT EXISTS parent_child (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   parent_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  child_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  child_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   status TEXT DEFAULT 'active',
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(parent_id, child_id)
 );
 
 CREATE TABLE IF NOT EXISTS daily_state (
@@ -198,6 +201,44 @@ for (const col of ['privacy_accepted_at', 'consent_accepted_at']) {
 const userColumns3 = db.prepare("PRAGMA table_info(users)").all().map(c => c.name);
 if (!userColumns3.includes('goals')) {
   db.exec('ALTER TABLE users ADD COLUMN goals TEXT');
+}
+
+// MIGRAZIONE: foto del profilo (percorso del file salvato su disco, non
+// l'immagine stessa). Separata dall'emoji "avatar" già esistente: se è
+// presente, la foto ha la precedenza sull'emoji nell'elenco tutor che vede
+// il paziente in fase di scelta.
+const userColumns4 = db.prepare("PRAGMA table_info(users)").all().map(c => c.name);
+if (!userColumns4.includes('avatar_photo')) {
+  db.exec('ALTER TABLE users ADD COLUMN avatar_photo TEXT');
+}
+
+// MIGRAZIONE: consentire fino a due genitori collegati allo stesso figlio/a
+// (prima era possibile un solo genitore per figlio, per via del vincolo
+// "child_id UNIQUE"). Stesso schema di ricostruzione già usato sopra per la
+// tabella "users": rinominiamo la tabella vecchia, ne creiamo una nuova senza
+// il vincolo UNIQUE su child_id (sostituito da UNIQUE(parent_id, child_id),
+// che impedisce solo i doppioni dello stesso genitore) e ricopiamo i dati.
+const parentChildTableInfo = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='parent_child'").get();
+if (parentChildTableInfo && parentChildTableInfo.sql.includes('child_id INTEGER NOT NULL UNIQUE')) {
+  const migrateParentChild = db.transaction(() => {
+    db.exec('ALTER TABLE parent_child RENAME TO parent_child_pre_two_parents_migration');
+    db.exec(`
+      CREATE TABLE parent_child (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        parent_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        child_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        status TEXT DEFAULT 'active',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(parent_id, child_id)
+      )
+    `);
+    db.exec(`
+      INSERT INTO parent_child (id, parent_id, child_id, status, created_at)
+      SELECT id, parent_id, child_id, status, created_at FROM parent_child_pre_two_parents_migration
+    `);
+    db.exec('DROP TABLE parent_child_pre_two_parents_migration');
+  });
+  migrateParentChild();
 }
 
 module.exports = db;

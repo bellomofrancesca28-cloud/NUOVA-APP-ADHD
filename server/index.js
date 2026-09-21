@@ -10,7 +10,10 @@ const cookieParser = require('cookie-parser');
 const realtime = require('./realtime');
 
 const app = express();
-app.use(express.json());
+// Limite più alto del default (100kb): le foto profilo arrivano come testo
+// base64 dentro il corpo JSON, quindi devono poter passare richieste più
+// grandi (vedi server/routes/profile.js, rotta PUT /photo).
+app.use(express.json({ limit: '5mb' }));
 app.use(cookieParser());
 
 // Serve i file statici del frontend (index.html, css, js)

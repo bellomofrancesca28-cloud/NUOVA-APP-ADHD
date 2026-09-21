@@ -44,6 +44,9 @@ body[data-page="revisione"],body[data-page="therapist-review"]{--page-a:hsl(165,
 .role-toggle-btn.active{background:hsl(172,59%,91%);color:var(--primary);border-color:var(--primary);font-weight:600}
 .therapist-pick-card{border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;cursor:pointer;transition:border-color .15s}
 .therapist-pick-card:hover{border-color:var(--primary)}
+.therapist-pick-head{display:flex;align-items:center;gap:12px}
+.therapist-pick-avatar{width:44px;height:44px;border-radius:50%;overflow:hidden;flex-shrink:0;background:hsl(172,59%,88%);display:flex;align-items:center;justify-content:center;font-size:22px}
+.therapist-pick-avatar img{width:100%;height:100%;object-fit:cover}
 .therapist-pick-name{font-weight:600;font-size:14px}
 .therapist-pick-specialty{font-size:12px;color:var(--muted-fg);margin-top:2px}
 .therapist-pick-bio{font-size:12px;color:var(--muted-fg);margin-top:6px;line-height:1.5}

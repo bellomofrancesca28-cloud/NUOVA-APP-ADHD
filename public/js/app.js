@@ -33,7 +33,8 @@ async function boot() {
     state.user = me.user;
     state.therapistLink = me.therapistLink;
     if (state.user.role === 'patient' && !state.therapistLink) {
-      showPairing();
+      if (me.pendingTherapistRequest) showPairingWaiting(me.pendingTherapistRequest);
+      else showPairing();
     } else if (state.user.role === 'parent') {
       await showParentLinkIfNeeded();
     } else {
@@ -47,6 +48,7 @@ async function boot() {
 function showAuth() {
   document.getElementById('view-auth').style.display = 'flex';
   document.getElementById('view-pairing').style.display = 'none';
+  document.getElementById('view-pairing-waiting').style.display = 'none';
   document.getElementById('view-parent-link').style.display = 'none';
   document.getElementById('view-notifications').style.display = 'none';
   document.getElementById('view-consent').style.display = 'none';
@@ -88,7 +90,10 @@ async function doLogin() {
     state.user = data.user;
     const me = await api.get('/api/auth/me');
     state.therapistLink = me.therapistLink;
-    if (state.user.role === 'patient' && !state.therapistLink) showPairing();
+    if (state.user.role === 'patient' && !state.therapistLink) {
+      if (me.pendingTherapistRequest) showPairingWaiting(me.pendingTherapistRequest);
+      else showPairing();
+    }
     else if (state.user.role === 'parent') await showParentLinkIfNeeded();
     else await enterApp();
   } catch (e) {
@@ -122,6 +127,7 @@ async function doRegister() {
 function showNotificationsPrefs() {
   document.getElementById('view-auth').style.display = 'none';
   document.getElementById('view-pairing').style.display = 'none';
+  document.getElementById('view-pairing-waiting').style.display = 'none';
   document.getElementById('view-parent-link').style.display = 'none';
   document.getElementById('app-root').style.display = 'none';
   document.getElementById('view-notifications').style.display = 'flex';
@@ -196,6 +202,7 @@ async function doLogout() {
 /* ========================= PAIRING (solo pazienti) ========================= */
 async function showPairing() {
   document.getElementById('view-auth').style.display = 'none';
+  document.getElementById('view-pairing-waiting').style.display = 'none';
   document.getElementById('view-notifications').style.display = 'none';
   document.getElementById('view-consent').style.display = 'none';
   document.getElementById('view-goals').style.display = 'none';
@@ -214,8 +221,20 @@ async function showPairing() {
     therapists.forEach(t => {
       const card = document.createElement('div');
       card.className = 'therapist-pick-card';
-      card.innerHTML = `<div class="therapist-pick-name">${escapeHtml(t.avatar || '🧑‍⚕️')} ${escapeHtml(t.name)}</div>
-        ${t.specialty ? `<div class="therapist-pick-specialty">${escapeHtml(t.specialty)}</div>` : ''}
+      // La foto vera (se caricata dal tutor) ha sempre la precedenza
+      // sull'emoji: è quello che rende il profilo riconoscibile a colpo
+      // d'occhio quando il paziente sta scegliendo.
+      const avatarHtml = t.avatar_photo
+        ? `<img src="${escapeHtml(t.avatar_photo)}" alt="">`
+        : escapeHtml(t.avatar || '🧑‍⚕️');
+      card.innerHTML = `
+        <div class="therapist-pick-head">
+          <div class="therapist-pick-avatar">${avatarHtml}</div>
+          <div>
+            <div class="therapist-pick-name">${escapeHtml(t.name)}</div>
+            ${t.specialty ? `<div class="therapist-pick-specialty">${escapeHtml(t.specialty)}</div>` : ''}
+          </div>
+        </div>
         ${t.bio ? `<div class="therapist-pick-bio">${escapeHtml(t.bio)}</div>` : ''}`;
       card.onclick = () => choosePairing(t.id);
       list.appendChild(card);
@@ -225,12 +244,14 @@ async function showPairing() {
   }
 }
 
+// La richiesta NON collega subito: resta "in attesa" finché il tutor non la
+// accetta dalla sua pagina. Mostriamo quindi la schermata di attesa invece di
+// entrare direttamente nell'app.
 async function choosePairing(therapistId) {
   const errEl = document.getElementById('pairing-error');
   try {
     const data = await api.post('/api/therapists/pair', { therapistId });
-    state.therapistLink = data.therapistLink;
-    await enterApp();
+    showPairingWaiting(data.request);
   } catch (e) {
     errEl.textContent = e.message;
   }
@@ -240,8 +261,7 @@ async function pairRandom() {
   const errEl = document.getElementById('pairing-error');
   try {
     const data = await api.post('/api/therapists/pair', { random: true });
-    state.therapistLink = data.therapistLink;
-    await enterApp();
+    showPairingWaiting(data.request);
   } catch (e) {
     errEl.textContent = e.message;
   }
@@ -254,8 +274,36 @@ async function pairByCode() {
   if (!code) { errEl.textContent = 'Inserisci il codice.'; return; }
   try {
     const data = await api.post('/api/therapists/pair', { code });
-    state.therapistLink = data.therapistLink;
-    await enterApp();
+    showPairingWaiting(data.request);
+  } catch (e) {
+    errEl.textContent = e.message;
+  }
+}
+
+function showPairingWaiting(request) {
+  document.getElementById('view-auth').style.display = 'none';
+  document.getElementById('view-pairing').style.display = 'none';
+  document.getElementById('view-parent-link').style.display = 'none';
+  document.getElementById('view-notifications').style.display = 'none';
+  document.getElementById('view-consent').style.display = 'none';
+  document.getElementById('view-goals').style.display = 'none';
+  document.getElementById('app-root').style.display = 'none';
+  document.getElementById('view-pairing-waiting').style.display = 'flex';
+  document.getElementById('pairing-waiting-name').textContent = (request && request.therapist_name) || 'il tutor scelto';
+  document.getElementById('pairing-waiting-error').textContent = '';
+  // Segnamo che l'utente ha visto la schermata di attesa: al prossimo avvio
+  // dell'app, se nel frattempo il tutor ha accettato, mostreremo un avviso di
+  // conferma nella dashboard invece di entrare in silenzio.
+  localStorage.setItem('pendingTutorNotify', '1');
+}
+
+async function cancelPairingRequest() {
+  const errEl = document.getElementById('pairing-waiting-error');
+  errEl.textContent = '';
+  try {
+    await api.del('/api/therapists/pair');
+    localStorage.removeItem('pendingTutorNotify');
+    showPairing();
   } catch (e) {
     errEl.textContent = e.message;
   }
@@ -277,6 +325,7 @@ async function showParentLinkIfNeeded() {
 function showParentLink() {
   document.getElementById('view-auth').style.display = 'none';
   document.getElementById('view-pairing').style.display = 'none';
+  document.getElementById('view-pairing-waiting').style.display = 'none';
   document.getElementById('view-notifications').style.display = 'none';
   document.getElementById('view-consent').style.display = 'none';
   document.getElementById('view-goals').style.display = 'none';
@@ -305,6 +354,7 @@ async function submitParentLinkCode() {
 async function enterApp() {
   document.getElementById('view-auth').style.display = 'none';
   document.getElementById('view-pairing').style.display = 'none';
+  document.getElementById('view-pairing-waiting').style.display = 'none';
   document.getElementById('view-parent-link').style.display = 'none';
   document.getElementById('view-notifications').style.display = 'none';
   document.getElementById('view-consent').style.display = 'none';
@@ -324,6 +374,16 @@ async function enterApp() {
   if (state.user.role === 'patient') {
     document.getElementById('home-greeting').textContent = `Ciao ${displayName}.`;
     document.getElementById('home-sub').textContent = "Bentornato/a: qui trovi il Coach IA, l'agenda e la tua dashboard.";
+    // Se avevamo lasciato l'utente sulla schermata "in attesa" e nel frattempo
+    // il tutor ha accettato, mostriamo un avviso una tantum invece di entrare
+    // in silenzio: è il nostro "notifica dentro l'app".
+    const tutorBanner = document.getElementById('tutor-accepted-banner');
+    if (localStorage.getItem('pendingTutorNotify') && state.therapistLink) {
+      tutorBanner.style.display = 'block';
+      localStorage.removeItem('pendingTutorNotify');
+    } else {
+      tutorBanner.style.display = 'none';
+    }
   } else if (state.user.role === 'parent') {
     document.getElementById('home-greeting').textContent = `Bentornato/a, ${displayName}.`;
     document.getElementById('home-sub').textContent = 'Qui trovi i tuoi figli/e collegati e quello che condividono.';
@@ -333,6 +393,10 @@ async function enterApp() {
   }
 
   navigateTo('home');
+}
+
+function dismissTutorAcceptedBanner() {
+  document.getElementById('tutor-accepted-banner').style.display = 'none';
 }
 
 function applyRoleVisibility() {
@@ -359,6 +423,11 @@ function applyRoleVisibility() {
     document.querySelectorAll('.progress-range').forEach(el => el.classList.toggle('progress-range-adult', !teen));
     state.categories = teen ? ['Routine','Scuola','Focus','Energia'] : ['Lavoro','Casa','Benessere'];
     document.getElementById('messaggi-title').textContent = state.therapistLink ? `Note per ${state.therapistLink.therapist_name}` : 'Note';
+    // Per gli account minorenni il codice per i genitori non si gestisce più
+    // dal profilo del ragazzo/a: lo genera e lo condivide il tutor dalla sua
+    // pagina (vedi loadTherapistPatientDetail). Per gli adulti resta invariato.
+    document.getElementById('prof-link-code-group').style.display = teen ? 'none' : '';
+    document.getElementById('prof-link-code-teen-hint').style.display = teen ? '' : 'none';
   }
 }
 
@@ -503,6 +572,59 @@ function loadProfilePage() {
     document.getElementById('prof-specialty').value = state.user.specialty || '';
     document.getElementById('prof-bio').value = state.user.bio || '';
     loadTherapistLinkCodeBox();
+    renderProfilePhotoPreview();
+  }
+}
+
+// Mostra la foto già salvata (se c'è) nel riquadro rotondo del profilo.
+function renderProfilePhotoPreview() {
+  const img = document.getElementById('prof-photo-preview');
+  const hint = document.getElementById('prof-photo-empty-hint');
+  if (!img) return;
+  if (state.user.avatar_photo) {
+    img.src = state.user.avatar_photo;
+    img.style.display = 'block';
+    hint.style.display = 'none';
+  } else {
+    img.style.display = 'none';
+    hint.style.display = 'block';
+  }
+}
+
+async function uploadProfilePhoto() {
+  const input = document.getElementById('prof-photo-input');
+  const errEl = document.getElementById('profile-photo-error');
+  errEl.textContent = '';
+  const file = input.files && input.files[0];
+  if (!file) { errEl.textContent = 'Scegli prima un file immagine.'; return; }
+  if (file.size > 3 * 1024 * 1024) { errEl.textContent = 'Immagine troppo grande: massimo 3MB.'; return; }
+  try {
+    const imageBase64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('Non sono riuscito a leggere il file.'));
+      reader.readAsDataURL(file);
+    });
+    const data = await api.put('/api/profile/photo', { imageBase64 });
+    state.user = data.user;
+    renderProfilePhotoPreview();
+    input.value = '';
+    const el = document.getElementById('profile-photo-saved');
+    el.style.display = 'block'; setTimeout(() => el.style.display = 'none', 2500);
+  } catch (e) {
+    errEl.textContent = e.message;
+  }
+}
+
+async function removeProfilePhoto() {
+  const errEl = document.getElementById('profile-photo-error');
+  errEl.textContent = '';
+  try {
+    const data = await api.del('/api/profile/photo');
+    state.user = data.user;
+    renderProfilePhotoPreview();
+  } catch (e) {
+    errEl.textContent = e.message;
   }
 }
 
@@ -1394,6 +1516,7 @@ async function sendMsg() {
 /* ========================= AREA TERAPEUTA ========================= */
 async function loadTherapistPage() {
   document.getElementById('therapist-greeting').textContent = `Bentornato/a, ${state.user.nickname || state.user.name}`;
+  await loadTherapistRequests();
   const { patients } = await api.get('/api/therapists/patients');
   state.therapistPatients = patients;
   document.getElementById('therapist-count-patients').textContent = patients.length;
@@ -1417,7 +1540,7 @@ async function loadTherapistPage() {
     const trendVals = data.checkinTrend.length >= 2 ? data.checkinTrend.map(c => c.mood) : data.summary.week.map(w => w.pct);
     const t = data.moodTrendInfo;
     const card = document.createElement('div'); card.className = 'patient-card';
-    card.onclick = () => openTherapistChat(p.id, p.nickname || p.name);
+    card.onclick = () => openTherapistChat(p.id, p.nickname || p.name, p.age_group);
     card.innerHTML = `
       <div class="patient-card-head">
         <div><span class="patient-name">${escapeHtml(p.nickname || p.name)}</span> <span class="status-badge" style="font-size:10px">${p.age_group === 'teen' ? 'Teen' : 'Adulto'}</span></div>
@@ -1435,12 +1558,88 @@ async function loadTherapistPage() {
   });
 }
 
-async function openTherapistChat(patientId, displayName) {
+// Richieste di collegamento in attesa: il tutor le vede qui e sceglie se
+// accettarle (crea davvero il collegamento) o rifiutarle.
+async function loadTherapistRequests() {
+  const { requests } = await api.get('/api/therapists/requests');
+  document.getElementById('therapist-count-requests').textContent = requests.length;
+  const card = document.getElementById('therapist-requests-card');
+  const list = document.getElementById('therapist-requests-list');
+  list.innerHTML = '';
+  if (!requests.length) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  requests.forEach(r => {
+    const row = document.createElement('div');
+    row.className = 'review-slot-row';
+    const goalsHtml = (r.goals && r.goals.length)
+      ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${r.goals.map(g => `<span class="badge-effort">${escapeHtml(g)}</span>`).join('')}</div>`
+      : '';
+    row.innerHTML = `
+      <div class="review-slot-info">
+        <p>${escapeHtml(r.avatar || '🙂')} ${escapeHtml(r.nickname || r.name)}</p>
+        <span>${r.age_group === 'teen' ? 'Teen' : 'Adulto'} · Richiesta del ${new Date(r.created_at).toLocaleDateString('it-IT')}</span>
+        ${goalsHtml}
+      </div>
+      <div class="review-slot-actions"></div>`;
+    const actions = row.querySelector('.review-slot-actions');
+    const okBtn = document.createElement('button');
+    okBtn.className = 'btn btn-primary btn-sm';
+    okBtn.innerHTML = '<i class="ti ti-check"></i>Accetta';
+    okBtn.onclick = () => respondTherapistRequest(r.id, 'accept');
+    const noBtn = document.createElement('button');
+    noBtn.className = 'btn btn-sm';
+    noBtn.innerHTML = '<i class="ti ti-x"></i>Rifiuta';
+    noBtn.onclick = () => respondTherapistRequest(r.id, 'decline');
+    actions.appendChild(okBtn);
+    actions.appendChild(noBtn);
+    list.appendChild(row);
+  });
+}
+
+async function respondTherapistRequest(id, action) {
+  try {
+    await api.post(`/api/therapists/requests/${id}/${action}`);
+    await loadTherapistPage();
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+async function openTherapistChat(patientId, displayName, ageGroup) {
   state.currentTherapistChatPatientId = patientId;
   state.currentTherapistChatPatientName = displayName;
   navigateTo('therapist-chat');
   document.getElementById('therapist-chat-title').textContent = 'Note di ' + displayName;
-  await Promise.all([loadTherapistMessages(), loadTherapistPatientDiary()]);
+  const familyCard = document.getElementById('therapist-family-code-card');
+  document.getElementById('therapist-family-code-error').textContent = '';
+  if (ageGroup === 'teen') {
+    familyCard.style.display = 'block';
+    await Promise.all([loadTherapistMessages(), loadTherapistPatientDiary(), loadTherapistFamilyCode()]);
+  } else {
+    familyCard.style.display = 'none';
+    await Promise.all([loadTherapistMessages(), loadTherapistPatientDiary()]);
+  }
+}
+// Il tutor vede/genera qui il codice famiglia dei propri utenti minorenni,
+// da dare direttamente ai genitori (non compare più nel profilo del minore).
+async function loadTherapistFamilyCode() {
+  const box = document.getElementById('therapist-family-code-box');
+  try {
+    const { code } = await api.get('/api/therapists/patients/' + state.currentTherapistChatPatientId + '/family-code');
+    box.textContent = code || 'Nessun codice generato';
+  } catch (e) {
+    document.getElementById('therapist-family-code-error').textContent = e.message;
+  }
+}
+async function generateTherapistFamilyCode() {
+  const errEl = document.getElementById('therapist-family-code-error');
+  errEl.textContent = '';
+  try {
+    const { code } = await api.post('/api/therapists/patients/' + state.currentTherapistChatPatientId + '/family-code', {});
+    document.getElementById('therapist-family-code-box').textContent = code;
+  } catch (e) {
+    errEl.textContent = e.message;
+  }
 }
 async function loadTherapistPatientDiary() {
   const container = document.getElementById('therapist-checkin-diary-list');

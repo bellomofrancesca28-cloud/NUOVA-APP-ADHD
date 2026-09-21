@@ -183,6 +183,18 @@
   </div>
 </div>
 
+<!-- ===================== IN ATTESA DI CONFERMA DAL TUTOR ===================== -->
+<div id="view-pairing-waiting" class="auth-wrap" style="display:none">
+  <div class="auth-card" style="max-width:480px;text-align:center">
+    <i class="ti ti-clock-hour-4" style="font-size:34px;color:var(--primary);margin-bottom:10px;display:block"></i>
+    <h1 style="font-size:20px;margin-bottom:6px">Richiesta inviata</h1>
+    <p class="page-desc" style="margin-bottom:0">In attesa che <strong id="pairing-waiting-name">il tutor</strong> accetti il collegamento. Appena confermato, potrai iniziare a usare l'app con lui/lei — te lo mostreremo qui al tuo prossimo accesso.</p>
+    <div class="auth-error" id="pairing-waiting-error"></div>
+    <button class="btn" style="width:100%;justify-content:center;margin-top:18px" onclick="cancelPairingRequest()"><i class="ti ti-arrow-left"></i>Annulla e scegli un altro tutor</button>
+    <p style="text-align:center;margin-top:16px"><a href="#" onclick="doLogout();return false" style="font-size:12px;color:var(--muted-fg);text-decoration:underline">Esci</a></p>
+  </div>
+</div>
+
 <!-- ===================== COLLEGAMENTO GENITORE (solo genitori non ancora collegati) ===================== -->
 <div id="view-parent-link" class="auth-wrap" style="display:none">
   <div class="auth-card">
@@ -253,6 +265,12 @@
 
       <!-- HOME -->
       <div id="page-home" class="page active">
+        <div class="card" id="tutor-accepted-banner" style="display:none;border-color:var(--primary);background:hsl(172,59%,97%)">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+            <div><i class="ti ti-circle-check" style="color:var(--primary);margin-right:8px"></i><strong>Il tuo tutor ha accettato la richiesta!</strong> Ora potete scrivervi note e vedere insieme i tuoi progressi.</div>
+            <button class="btn btn-sm" onclick="dismissTutorAcceptedBanner()"><i class="ti ti-x"></i></button>
+          </div>
+        </div>
         <div class="hero-card">
           <h2 id="home-greeting">Ciao.</h2>
           <p id="home-sub">Bentornato/a nella tua app.</p>
@@ -309,6 +327,24 @@
             <div class="emoji-picker-grid" id="emoji-picker-grid"></div>
           </div>
 
+          <div class="card role-therapist" style="display:none">
+            <div class="card-title">Foto del profilo</div>
+            <div class="card-desc">Visibile agli utenti quando scelgono un tutor. Se la carichi, sostituisce l'emoji nell'elenco.</div>
+            <div style="display:flex;justify-content:center;margin-bottom:16px">
+              <div style="width:110px;height:110px;border-radius:50%;overflow:hidden;border:3px solid var(--border);background:hsl(172,59%,88%);display:flex;align-items:center;justify-content:center">
+                <img id="prof-photo-preview" style="width:100%;height:100%;object-fit:cover;display:none" alt="">
+                <span id="prof-photo-empty-hint" style="font-size:11px;color:var(--muted-fg);text-align:center;padding:0 10px">Nessuna foto</span>
+              </div>
+            </div>
+            <input type="file" id="prof-photo-input" accept="image/png,image/jpeg,image/webp" style="margin-bottom:12px">
+            <div class="btn-row">
+              <button type="button" class="btn btn-primary" onclick="uploadProfilePhoto()"><i class="ti ti-upload"></i>Carica foto</button>
+              <button type="button" class="btn" onclick="removeProfilePhoto()"><i class="ti ti-trash"></i>Rimuovi</button>
+            </div>
+            <div class="auth-error" id="profile-photo-error"></div>
+            <div class="feedback" id="profile-photo-saved"><i class="ti ti-check"></i> Foto aggiornata</div>
+          </div>
+
           <div class="card">
             <div class="card-title">Informazioni</div>
             <div class="card-desc">Usate per personalizzare i saluti nell'app.</div>
@@ -326,13 +362,17 @@
               </select>
             </div>
             <div class="form-group role-patient"><label for="prof-job">Professione</label><input type="text" id="prof-job" placeholder="Es. Designer, Studente, Insegnante..."></div>
-            <div class="form-group role-patient">
-              <label>Codice per un genitore</label>
-              <p class="card-desc" style="margin:0 0 8px">Condividi questo codice con un genitore per fargli vedere quello che condividi (agenda, check-in, statistiche e note al tutor).</p>
+            <div class="form-group role-patient" id="prof-link-code-group">
+              <label>Codice per i genitori</label>
+              <p class="card-desc" style="margin:0 0 8px">Condividi questo codice con uno o entrambi i genitori (fino a 2) per fargli vedere quello che condividi (agenda, check-in, statistiche e note al tutor).</p>
               <div style="display:flex;align-items:center;gap:10px">
                 <span id="prof-link-code-box" style="font-family:monospace;font-size:18px;font-weight:600;letter-spacing:2px;background:hsl(172,59%,91%);color:var(--primary);padding:6px 14px;border-radius:8px">Nessun codice generato</span>
                 <button type="button" class="btn" onclick="generateLinkCode()"><i class="ti ti-refresh"></i>Genera nuovo</button>
               </div>
+            </div>
+            <div class="form-group role-patient" id="prof-link-code-teen-hint" style="display:none">
+              <label>Codice per i genitori</label>
+              <p class="card-desc" style="margin:0">Per gli account minorenni il codice è gestito dal tuo tutor: chiediglielo dalla sua pagina quando un genitore deve collegarsi.</p>
             </div>
             <div class="form-group role-therapist" style="display:none"><label for="prof-specialty">Specializzazione</label><input type="text" id="prof-specialty"></div>
             <div class="form-group role-therapist" style="display:none"><label for="prof-bio">Bio (visibile agli utenti in cerca di un tutor)</label><textarea id="prof-bio" rows="3"></textarea></div>
@@ -643,9 +683,14 @@
         <span class="page-badge" style="background:hsl(262,52%,55%)">Area Tutor</span>
         <h1 id="therapist-greeting">Bentornato/a.</h1>
         <p class="page-desc">Vista clinica non diagnostica sugli utenti in carico.</p>
-        <div class="grid-4" style="margin-bottom:18px">
+        <div class="grid-3" style="margin-bottom:18px">
           <div class="metric-card"><div class="metric-label">Utenti in carico</div><div class="metric-value" id="therapist-count-patients">—</div><div class="metric-hint">Attivi</div></div>
+          <div class="metric-card"><div class="metric-label">Richieste in attesa</div><div class="metric-value" id="therapist-count-requests">—</div><div class="metric-hint">Da accettare o rifiutare</div></div>
           <div class="metric-card"><div class="metric-label">Da monitorare</div><div class="metric-value" id="therapist-watch-count">—</div><div class="metric-hint">Andamento in calo, ultimi 7gg</div></div>
+        </div>
+        <div class="card" id="therapist-requests-card" style="display:none">
+          <div class="card-title">Richieste in attesa</div><div class="card-desc">Nuovi utenti che vogliono collegarsi a te, con gli obiettivi scelti in fase di iscrizione: accetta per iniziare a seguirli, oppure rifiuta.</div>
+          <div id="therapist-requests-list"></div>
         </div>
         <div class="card">
           <div class="card-title">Utenti</div><div class="card-desc">Andamento reale degli ultimi 7 giorni. Clicca un utente per aprire la chat.</div>
@@ -676,6 +721,15 @@
           <div class="card-title">Diario dello stato d'animo</div>
           <div class="card-desc">Le voci di check-in dell'utente, dalla più recente.</div>
           <div id="therapist-checkin-diary-list"></div>
+        </div>
+        <div class="card" id="therapist-family-code-card" style="display:none">
+          <div class="card-title">Codice per i genitori</div>
+          <div class="card-desc">Questo utente è minorenne: il codice per collegare un genitore non compare nel suo profilo, lo condividi tu con la famiglia. Puoi darlo a entrambi i genitori (fino a 2), lo stesso codice va bene per tutti e due.</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+            <span id="therapist-family-code-box" style="font-family:monospace;font-size:18px;font-weight:600;letter-spacing:2px;background:hsl(172,59%,91%);color:var(--primary);padding:6px 14px;border-radius:8px">—</span>
+            <button type="button" class="btn" onclick="generateTherapistFamilyCode()"><i class="ti ti-refresh"></i>Genera nuovo</button>
+          </div>
+          <div class="form-error" id="therapist-family-code-error"></div>
         </div>
       </div>
 

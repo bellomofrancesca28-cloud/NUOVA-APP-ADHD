@@ -15,7 +15,7 @@ router.get('/', requireAuth, requireRole('patient'), (req, res) => {
 // usato altrove per non far vedere dati di pazienti non propri).
 router.get('/patient/:id', requireAuth, requireRole('therapist'), (req, res) => {
   const patientId = Number(req.params.id);
-  const link = db.prepare('SELECT 1 FROM patient_therapist WHERE therapist_id = ? AND patient_id = ?').get(req.user.id, patientId);
+  const link = db.prepare('SELECT 1 FROM patient_therapist WHERE therapist_id = ? AND patient_id = ? AND status = \'active\'').get(req.user.id, patientId);
   if (!link) return res.status(403).json({ error: 'Utente non collegato al tuo account.' });
   const limit = Math.min(Number(req.query.limit) || 30, 100);
   const rows = db.prepare('SELECT * FROM checkins WHERE user_id = ? ORDER BY created_at DESC LIMIT ?').all(patientId, limit);

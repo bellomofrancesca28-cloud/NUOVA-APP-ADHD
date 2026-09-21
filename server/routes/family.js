@@ -18,6 +18,11 @@ router.post('/code', requireAuth, requireRole('patient'), (req, res) => {
 });
 
 // Il genitore collega il proprio account inserendo il codice del figlio/a.
+// Il figlio/a può condividere lo stesso codice con entrambi i genitori
+// (il codice non viene consumato al primo utilizzo): fino a due genitori
+// possono collegarsi allo stesso account.
+const MAX_PARENTS_PER_CHILD = 2;
+
 router.post('/link', requireAuth, requireRole('parent'), (req, res) => {
   const code = ((req.body && req.body.code) || '').toUpperCase().trim();
   if (!code) return res.status(400).json({ error: 'Inserisci il codice.' });
@@ -25,8 +30,13 @@ router.post('/link', requireAuth, requireRole('parent'), (req, res) => {
   const child = db.prepare('SELECT * FROM users WHERE link_code = ? AND role = \'patient\'').get(code);
   if (!child) return res.status(404).json({ error: 'Codice non valido. Chiedi a tuo figlio/a di generarne uno nuovo dal suo profilo.' });
 
-  const already = db.prepare('SELECT * FROM parent_child WHERE child_id = ?').get(child.id);
-  if (already) return res.status(409).json({ error: 'Questo account è già collegato a un genitore.' });
+  const alreadyMe = db.prepare('SELECT * FROM parent_child WHERE parent_id = ? AND child_id = ?').get(req.user.id, child.id);
+  if (alreadyMe) return res.status(409).json({ error: 'Sei già collegato a questo account.' });
+
+  const parentsCount = db.prepare('SELECT COUNT(*) as c FROM parent_child WHERE child_id = ?').get(child.id).c;
+  if (parentsCount >= MAX_PARENTS_PER_CHILD) {
+    return res.status(409).json({ error: 'Questo account è già collegato al numero massimo di genitori.' });
+  }
 
   db.prepare('INSERT INTO parent_child (parent_id, child_id) VALUES (?, ?)').run(req.user.id, child.id);
   res.json({ child: publicUser(child) });
