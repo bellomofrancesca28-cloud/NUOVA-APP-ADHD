@@ -17,7 +17,7 @@ const router = express.Router();
 const VALID_AGE_RANGES = ['teen', 'adult']; // teen = 14-17, adult = >18 (solo pazienti)
 
 router.post('/register', (req, res) => {
-  const { email, password, role, name, ageRange, job, goal, bio, specialty, cvBase64 } = req.body || {};
+  const { email, password, role, name, ageRange, job, goal, bio, specialty, cvBase64, orderNumber } = req.body || {};
 
   if (!email || !password || !role || !name) {
     return res.status(400).json({ error: 'Compila email, password, nome e ruolo.' });
@@ -64,6 +64,8 @@ router.post('/register', (req, res) => {
   if (role === 'therapist') {
     if (!specialty || !specialty.trim()) return res.status(400).json({ error: 'Inserisci la tua specializzazione.' });
     if (!bio || !bio.trim()) return res.status(400).json({ error: 'Inserisci una breve descrizione della tua formazione.' });
+    if (typeof orderNumber !== 'string' || !orderNumber.trim()) return res.status(400).json({ error: 'Inserisci il numero di iscrizione all\'ordine.' });
+    if (orderNumber.trim().length > 40) return res.status(400).json({ error: 'Numero di iscrizione troppo lungo.' });
     const m = typeof cvBase64 === 'string' && cvBase64.match(/^data:application\/pdf;base64,(.+)$/);
     if (!m) return res.status(400).json({ error: 'Carica il tuo CV in formato PDF.' });
     cvBuffer = Buffer.from(m[1], 'base64');
@@ -106,15 +108,16 @@ router.post('/register', (req, res) => {
     if (!fs.existsSync(CV_DIR)) fs.mkdirSync(CV_DIR, { recursive: true });
     const cvFile = `${user.id}-${crypto.randomBytes(6).toString('hex')}.pdf`;
     fs.writeFileSync(path.join(CV_DIR, cvFile), cvBuffer);
-    db.prepare('UPDATE users SET approved = 0, approval_token = ?, cv_file = ? WHERE id = ?').run(token, cvFile, user.id);
+    db.prepare('UPDATE users SET approved = 0, approval_token = ?, cv_file = ?, order_number = ? WHERE id = ?').run(token, cvFile, orderNumber.trim(), user.id);
+    user.order_number = orderNumber.trim();
     const base = process.env.APP_BASE_URL || `${req.get('x-forwarded-proto') || req.protocol}://${req.get('host')}`;
     const link = `${base}/api/auth/approve-tutor?token=${token}`;
     const adminEmail = process.env.ADMIN_EMAIL || 'bellomofrancesca28@gmail.com';
     sendMail({
       to: adminEmail,
       subject: `Nuova richiesta account Tutor: ${user.name}`,
-      text: `Un nuovo tutor ha chiesto di registrarsi su ADHD Coach.\n\nNome: ${user.name}\nEmail: ${user.email}\nSpecializzazione: ${user.specialty}\n\nDescrizione della formazione:\n${user.bio}\n\nIl CV è allegato a questa email.\n\nPer approvare o rifiutare apri questo link:\n${link}\n`,
-      html: `<p>Un nuovo tutor ha chiesto di registrarsi su ADHD Coach.</p><p><b>Nome:</b> ${escapeHtml(user.name)}<br><b>Email:</b> ${escapeHtml(user.email)}<br><b>Specializzazione:</b> ${escapeHtml(user.specialty)}</p><p><b>Descrizione della formazione:</b><br>${escapeHtml(user.bio).replace(/\n/g, '<br>')}</p><p>Il CV è allegato a questa email.</p><p><a href="${link}">Apri per approvare o rifiutare</a></p>`,
+      text: `Un nuovo tutor ha chiesto di registrarsi su ADHD Coach.\n\nNome: ${user.name}\nEmail: ${user.email}\nSpecializzazione: ${user.specialty}\nN. iscrizione all'ordine: ${user.order_number}\n\nDescrizione della formazione:\n${user.bio}\n\nIl CV è allegato a questa email.\n\nPer approvare o rifiutare apri questo link:\n${link}\n`,
+      html: `<p>Un nuovo tutor ha chiesto di registrarsi su ADHD Coach.</p><p><b>Nome:</b> ${escapeHtml(user.name)}<br><b>Email:</b> ${escapeHtml(user.email)}<br><b>Specializzazione:</b> ${escapeHtml(user.specialty)}<br><b>N. iscrizione all'ordine:</b> ${escapeHtml(user.order_number)}</p><p><b>Descrizione della formazione:</b><br>${escapeHtml(user.bio).replace(/\n/g, '<br>')}</p><p>Il CV è allegato a questa email.</p><p><a href="${link}">Apri per approvare o rifiutare</a></p>`,
       attachments: [{ filename: `CV-${user.name.replace(/[^\w]+/g, '_')}.pdf`, content: cvBuffer, contentType: 'application/pdf' }],
     });
     return res.json({ pendingApproval: true });
@@ -142,7 +145,7 @@ router.get('/approve-tutor', (req, res) => {
   const tutor = pendingTutorByToken(req.query.token);
   if (!tutor) return res.status(404).send(simplePage('Link non valido', '<p>Questa richiesta non esiste più o è già stata gestita.</p>'));
   res.send(simplePage('Richiesta account Tutor', `
-    <p><b>${escapeHtml(tutor.name)}</b><br>${escapeHtml(tutor.email)}<br><i>${escapeHtml(tutor.specialty || '')}</i></p>
+    <p><b>${escapeHtml(tutor.name)}</b><br>${escapeHtml(tutor.email)}<br><i>${escapeHtml(tutor.specialty || '')}</i><br>N. iscrizione all'ordine: <b>${escapeHtml(tutor.order_number || '-')}</b></p>
     <p>${escapeHtml(tutor.bio || '').replace(/\n/g, '<br>')}</p>
     ${tutor.cv_file ? `<p><a href="/api/auth/approve-tutor/cv?token=${escapeHtml(req.query.token)}" target="_blank">Apri il CV (PDF)</a></p>` : ''}
     <form method="post" action="/api/auth/approve-tutor" style="display:flex;gap:10px">

@@ -20,7 +20,7 @@ router.post('/code', requireAuth, requireRole('therapist'), (req, res) => {
 // mostrare pubblicamente (nome, avatar, specializzazione, bio).
 router.get('/', requireAuth, requireRole('patient'), (req, res) => {
   const therapists = db.prepare(`
-    SELECT u.id, u.name, u.avatar, u.avatar_photo, u.specialty, u.bio,
+    SELECT u.id, u.name, u.avatar, u.avatar_photo, u.specialty, u.bio, u.order_number,
       (SELECT COUNT(*) FROM patient_therapist pt WHERE pt.therapist_id = u.id AND pt.status = 'active') as patients_count
     FROM users u WHERE u.role = 'therapist'
     ORDER BY patients_count ASC, u.name ASC

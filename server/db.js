@@ -259,6 +259,10 @@ if (!userColumns5.includes('cv_file')) {
 }
 // Data di nascita (YYYY-MM-DD) e cellulare di utenti e genitori: li vede il
 // tutor con cui l'utente si collega.
+// Numero di iscrizione all'ordine professionale del tutor (visibile agli utenti).
+if (!userColumns5.includes('order_number')) {
+  db.exec('ALTER TABLE users ADD COLUMN order_number TEXT');
+}
 if (!userColumns5.includes('birth_date')) {
   db.exec('ALTER TABLE users ADD COLUMN birth_date TEXT');
 }

@@ -77,7 +77,7 @@ function setRegisterRole(choice) {
   ['teen', 'adult', 'parent', 'therapist'].forEach(c => {
     document.getElementById('role-btn-' + c).classList.toggle('active', c === choice);
   });
-  ['specialty', 'bio', 'cv'].forEach(f => {
+  ['specialty', 'order', 'bio', 'cv'].forEach(f => {
     document.getElementById('reg-' + f + '-group').style.display = choice === 'therapist' ? 'block' : 'none';
   });
   ['birth', 'phone'].forEach(f => {
@@ -124,7 +124,8 @@ async function doRegister() {
   else if (registerRole === 'therapist') {
     payload.specialty = document.getElementById('reg-specialty').value.trim();
     payload.bio = document.getElementById('reg-bio').value.trim();
-    if (!payload.specialty || !payload.bio) { errEl.textContent = 'Compila specializzazione e breve descrizione.'; return; }
+    payload.orderNumber = document.getElementById('reg-order').value.trim();
+    if (!payload.specialty || !payload.bio || !payload.orderNumber) { errEl.textContent = 'Compila specializzazione, numero di iscrizione all\'ordine e breve descrizione.'; return; }
     const cvFile = document.getElementById('reg-cv').files[0];
     if (!cvFile) { errEl.textContent = 'Carica il tuo CV in formato PDF.'; return; }
     if (cvFile.type !== 'application/pdf') { errEl.textContent = 'Il CV deve essere un file PDF.'; return; }
@@ -192,6 +193,10 @@ function updateConsentButton() {
 async function submitConsent() {
   const errEl = document.getElementById('consent-error');
   errEl.textContent = '';
+  if (!document.getElementById('consent-privacy').checked || !document.getElementById('consent-informed').checked) {
+    errEl.textContent = 'Per continuare devi accettare sia la privacy sia il consenso informato.';
+    return;
+  }
   const payload = {
     privacy: document.getElementById('consent-privacy').checked,
     consent: document.getElementById('consent-informed').checked,
@@ -263,6 +268,7 @@ async function showPairing() {
           <div>
             <div class="therapist-pick-name">${escapeHtml(t.name)}</div>
             ${t.specialty ? `<div class="therapist-pick-specialty">${escapeHtml(t.specialty)}</div>` : ''}
+            ${t.order_number ? `<div class="therapist-pick-specialty">Iscrizione all'ordine n. ${escapeHtml(t.order_number)}</div>` : ''}
           </div>
         </div>
         ${t.bio ? `<div class="therapist-pick-bio">${escapeHtml(t.bio)}</div>` : ''}`;
@@ -2040,23 +2046,25 @@ async function loadParentChildPage() {
   // Diario dello stato d'animo (stesso rendering condiviso con paziente e terapeuta)
   renderCheckinDiary(document.getElementById('parent-child-checkins'), data.checkins);
 
-  // Note scambiate col terapeuta (visibili al genitore su richiesta esplicita
-  // della famiglia — diversamente dal resto dell'app, che le tiene private)
-  const msgSection = document.getElementById('parent-child-messages-section');
-  const msgList = document.getElementById('parent-child-messages');
-  if (!data.therapistLink) {
-    msgSection.style.display = 'none';
+  // Scheda del tutor collegato al figlio/a: chi è, formazione e n. di iscrizione all'ordine.
+  const tutorCard = document.getElementById('parent-child-tutor-card');
+  const tl = data.therapistLink;
+  if (!tl) {
+    tutorCard.style.display = 'none';
   } else {
-    msgSection.style.display = 'block';
-    document.getElementById('parent-child-therapist-name').textContent = data.therapistLink.therapist_name;
-    msgList.innerHTML = '';
-    if (!data.messages.length) { msgList.innerHTML = '<p class="empty-hint">Ancora nessuna nota.</p>'; }
-    data.messages.forEach(m => {
-      const row = document.createElement('div'); row.className = 'msg-row';
-      const senderLabel = m.sender_role === 'therapist' ? data.therapistLink.therapist_name : (data.child.nickname || data.child.name);
-      row.innerHTML = `<div class="msg-header"><span>${escapeHtml(senderLabel)}</span><span>${new Date(m.created_at).toLocaleString('it-IT')}</span></div><div class="msg-body">${escapeHtml(m.body)}</div>`;
-      msgList.appendChild(row);
-    });
+    tutorCard.style.display = 'block';
+    document.getElementById('parent-child-tutor-avatar').innerHTML = tl.therapist_photo
+      ? `<img src="${escapeHtml(tl.therapist_photo)}" alt="">`
+      : escapeHtml(tl.therapist_avatar || '🧑‍⚕️');
+    document.getElementById('parent-child-tutor-name').textContent = tl.therapist_name;
+    document.getElementById('parent-child-tutor-specialty').textContent = tl.therapist_specialty
+      ? `Formazione: ${tl.therapist_specialty}` : '';
+    document.getElementById('parent-child-tutor-order').textContent = tl.therapist_order_number
+      ? `Iscrizione all'ordine n. ${tl.therapist_order_number}` : '';
+    const emailEl = document.getElementById('parent-child-tutor-email');
+    emailEl.innerHTML = tl.therapist_email
+      ? `Email: <a href="mailto:${escapeHtml(tl.therapist_email)}">${escapeHtml(tl.therapist_email)}</a>` : '';
+    document.getElementById('parent-child-tutor-bio').textContent = tl.therapist_bio || '';
   }
 }
 

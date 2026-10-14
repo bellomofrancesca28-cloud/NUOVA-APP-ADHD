@@ -60,6 +60,11 @@
         <label for="reg-specialty">Specializzazione (obbligatoria)</label>
         <input type="text" id="reg-specialty" placeholder="Es. Psicologa clinica, adolescenti">
       </div>
+      <div class="form-group" id="reg-order-group" style="display:none">
+        <label for="reg-order">Numero di iscrizione all'ordine (obbligatorio)</label>
+        <input type="text" id="reg-order" placeholder="Es. Albo Psicologi Lombardia n. 12345">
+        <small style="color:var(--muted-fg)">Gli utenti lo vedranno quando scelgono il tutor.</small>
+      </div>
       <div class="form-group" id="reg-bio-group" style="display:none">
         <label for="reg-bio">Breve descrizione della tua formazione (obbligatoria)</label>
         <textarea id="reg-bio" rows="3" placeholder="Es. Laurea in Psicologia, master in ADHD in età evolutiva, 5 anni di esperienza con adolescenti..."></textarea>
@@ -147,6 +152,7 @@
         Ho letto e fornisco il consenso informato al trattamento dei dati.
       </label>
     </div>
+    <p style="font-size:13px;color:var(--text-muted,#666);margin:4px 0 10px">Per continuare devi spuntare entrambe le caselle.</p>
     <div class="auth-error" id="consent-error"></div>
     <button class="btn btn-primary" style="width:100%;justify-content:center" id="consent-continue-btn" disabled onclick="submitConsent()"><i class="ti ti-check"></i>Accetta e continua</button>
   </div>
@@ -855,6 +861,20 @@
           <div class="metric-card"><div class="metric-label">Altre attività</div><div class="metric-value" id="parent-child-other-pct">—</div><div class="metric-hint">Completamento</div></div>
         </div>
 
+        <div class="card" id="parent-child-tutor-card" style="margin-bottom:18px;display:none">
+          <div class="card-title">Il tutor che segue vostro figlio/a</div>
+          <div class="therapist-pick-head" style="margin-top:8px">
+            <div class="therapist-pick-avatar" id="parent-child-tutor-avatar"></div>
+            <div>
+              <div class="therapist-pick-name" id="parent-child-tutor-name"></div>
+              <div class="therapist-pick-specialty" id="parent-child-tutor-specialty"></div>
+              <div class="therapist-pick-specialty" id="parent-child-tutor-order"></div>
+              <div class="therapist-pick-specialty" id="parent-child-tutor-email"></div>
+            </div>
+          </div>
+          <div class="therapist-pick-bio" id="parent-child-tutor-bio"></div>
+        </div>
+
         <div class="card" style="margin-bottom:18px">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
             <div><div class="card-title" style="margin:0">Stelle</div><div class="card-desc" style="margin:0">Una stella per ogni giorno con tutte le attività completate; una settimana intera (lun-dom) = super stella.</div></div>
@@ -873,12 +893,6 @@
             <div class="card-title">Diario dello stato d'animo</div><div class="card-desc">Le voci di check-in, dalla più recente.</div>
             <div id="parent-child-checkins"></div>
           </div>
-        </div>
-
-        <div class="card" id="parent-child-messages-section" style="display:none">
-          <div class="card-title">Note con <span id="parent-child-therapist-name">—</span></div>
-          <div class="card-desc">Condivise con te su richiesta della famiglia; nel resto dell'app restano private tra utente e tutor.</div>
-          <div id="parent-child-messages"></div>
         </div>
       </div>
 

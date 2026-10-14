@@ -59,8 +59,7 @@ function ownsChild(parentId, childId) {
 }
 
 // Vista completa (in sola lettura) di un figlio/a collegato: agenda di oggi,
-// check-in recenti, statistiche e — su richiesta esplicita della famiglia —
-// anche le note scambiate col terapeuta.
+// check-in recenti, statistiche e stelle. Le note scritte al tutor restano private.
 router.get('/children/:id/overview', requireAuth, requireRole('parent'), (req, res) => {
   const childId = Number(req.params.id);
   if (!ownsChild(req.user.id, childId)) {
@@ -75,13 +74,11 @@ router.get('/children/:id/overview', requireAuth, requireRole('parent'), (req, r
   const summary = stats.fullSummary(child);
 
   const therapistLink = db.prepare(`
-    SELECT pt.*, u.name as therapist_name, u.avatar as therapist_avatar
+    SELECT pt.*, u.name as therapist_name, u.avatar as therapist_avatar, u.avatar_photo as therapist_photo,
+           u.specialty as therapist_specialty, u.bio as therapist_bio, u.order_number as therapist_order_number, u.email as therapist_email
     FROM patient_therapist pt JOIN users u ON u.id = pt.therapist_id
-    WHERE pt.patient_id = ?
+    WHERE pt.patient_id = ? AND pt.status = 'active'
   `).get(childId);
-  const messages = therapistLink
-    ? db.prepare('SELECT * FROM messages WHERE patient_id = ? ORDER BY created_at ASC').all(childId)
-    : [];
 
   res.json({
     child: { id: child.id, name: child.name, nickname: child.nickname, avatar: child.avatar, age_group: child.age_group },
@@ -90,7 +87,6 @@ router.get('/children/:id/overview', requireAuth, requireRole('parent'), (req, r
     summary,
     stars: computeStars(childId),
     therapistLink: therapistLink || null,
-    messages,
   });
 });
 
