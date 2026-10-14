@@ -57,14 +57,40 @@
       </div>
       <div class="form-group"><label for="reg-name">Nome</label><input type="text" id="reg-name" required></div>
       <div class="form-group" id="reg-specialty-group" style="display:none">
-        <label for="reg-specialty">Specializzazione (facoltativa)</label>
+        <label for="reg-specialty">Specializzazione (obbligatoria)</label>
         <input type="text" id="reg-specialty" placeholder="Es. Psicologa clinica, adolescenti">
+      </div>
+      <div class="form-group" id="reg-bio-group" style="display:none">
+        <label for="reg-bio">Breve descrizione della tua formazione (obbligatoria)</label>
+        <textarea id="reg-bio" rows="3" placeholder="Es. Laurea in Psicologia, master in ADHD in età evolutiva, 5 anni di esperienza con adolescenti..."></textarea>
+        <small style="color:var(--muted-fg)">Gli utenti la vedranno quando scelgono il tutor.</small>
+      </div>
+      <div class="form-group" id="reg-cv-group" style="display:none">
+        <label for="reg-cv">Il tuo CV in PDF (obbligatorio, max 3MB)</label>
+        <input type="file" id="reg-cv" accept="application/pdf">
+        <small style="color:var(--muted-fg)">Il CV lo vede solo chi approva la tua richiesta, non gli utenti.</small>
+      </div>
+      <div class="form-group" id="reg-birth-group">
+        <label for="reg-birth">Data di nascita</label>
+        <input type="date" id="reg-birth">
+      </div>
+      <div class="form-group" id="reg-phone-group">
+        <label for="reg-phone">Numero di cellulare</label>
+        <input type="tel" id="reg-phone" placeholder="Es. +39 333 1234567">
+        <small style="color:var(--muted-fg)">Data di nascita, email e cellulare li vede il tutor con cui ti colleghi.</small>
       </div>
       <div class="form-group"><label for="reg-email">Email</label><input type="email" id="reg-email" required></div>
       <div class="form-group"><label for="reg-password">Password (almeno 8 caratteri)</label><input type="password" id="reg-password" required minlength="8"></div>
       <div class="auth-error" id="register-error"></div>
       <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doRegister()"><i class="ti ti-user-plus"></i>Crea account</button>
     </form>
+
+    <div id="register-pending" style="display:none;text-align:center">
+      <i class="ti ti-mail-check" style="font-size:34px;color:var(--primary);display:block;margin-bottom:10px"></i>
+      <h2 style="font-size:18px;margin-bottom:6px">Richiesta inviata</h2>
+      <p class="page-desc">Il tuo account Tutor verrà attivato dopo l'approvazione. Riceverai un'email appena sarà pronto, poi potrai accedere.</p>
+      <button class="btn" style="width:100%;justify-content:center;margin-top:14px" onclick="location.reload()">Torna all'accesso</button>
+    </div>
 
     <p class="auth-disclaimer">Questa app non fa diagnosi, non prescrive farmaci e non sostituisce il tuo tutor o i servizi di emergenza.</p>
   </div>
@@ -199,7 +225,7 @@
 <div id="view-parent-link" class="auth-wrap" style="display:none">
   <div class="auth-card">
     <h1 style="font-size:20px;margin-bottom:6px">Collega tuo figlio/a</h1>
-    <p class="page-desc" style="margin-bottom:18px">Chiedi a tuo figlio/a di aprire il suo profilo, generare un codice e condividerlo con te. Inseriscilo qui sotto per collegare i due account.</p>
+    <p class="page-desc" style="margin-bottom:18px">Chiedi il codice al tutor che segue tuo figlio/a: te lo darà lui/lei. Inseriscilo qui sotto per collegare i due account.</p>
     <div class="form-group"><label for="parent-link-code">Codice</label><input type="text" id="parent-link-code" placeholder="Es. AB23CD" style="text-transform:uppercase" maxlength="6"></div>
     <div class="auth-error" id="parent-link-error"></div>
     <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="submitParentLinkCode()"><i class="ti ti-link"></i>Collega account</button>
@@ -269,6 +295,12 @@
           <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
             <div><i class="ti ti-circle-check" style="color:var(--primary);margin-right:8px"></i><strong>Il tuo tutor ha accettato la richiesta!</strong> Ora potete scrivervi note e vedere insieme i tuoi progressi.</div>
             <button class="btn btn-sm" onclick="dismissTutorAcceptedBanner()"><i class="ti ti-x"></i></button>
+          </div>
+        </div>
+        <div class="card" id="welcome-back-banner" style="display:none;border-color:var(--primary);background:hsl(172,59%,97%)">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+            <div><i class="ti ti-heart" style="color:var(--primary);margin-right:8px"></i><strong>Che bello rivederti!</strong> Nessuna fretta: ricominciare con una piccola cosa oggi è già un ottimo inizio.</div>
+            <button class="btn btn-sm" onclick="dismissWelcomeBack()"><i class="ti ti-x"></i></button>
           </div>
         </div>
         <div class="hero-card">
@@ -398,6 +430,15 @@
         <div class="btn-row">
           <button class="btn btn-primary" id="dash-checkin-btn" onclick="navigateTo('checkin')"><i class="ti ti-plus"></i>Nuovo check-in</button>
           <button class="btn" onclick="navigateTo('messaggi')"><i class="ti ti-message"></i>Il tuo tutor</button>
+        </div>
+
+        <div class="card role-patient" id="dash-stars-card">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+            <div><div class="card-title" style="margin:0">Le tue stelle</div><div class="card-desc" style="margin:0">Una stella per ogni giorno in cui completi tutte le attività. Una settimana intera = super stella.</div></div>
+            <div style="font-size:26px;font-weight:700;text-align:right"><span id="dash-stars-total">0</span> ⭐ &nbsp;<span id="dash-superstars-total">0</span> 🌟</div>
+          </div>
+          <div id="dash-superstar-hint" style="font-size:12px;color:var(--muted-fg);margin-top:8px"></div>
+          <div id="dash-stars-week" style="display:flex;gap:10px;margin-top:12px"></div>
         </div>
 
         <div class="subtab-bar" id="dash-subtab-bar">
@@ -706,6 +747,7 @@
           <button class="btn" style="background:hsl(262,52%,55%);color:#fff;border-color:hsl(262,52%,55%)" onclick="navigateTo('therapist-review')"><i class="ti ti-video"></i>Vai alla Revisione</button>
         </div>
         <h1 id="therapist-chat-title">Note di —</h1>
+        <div id="therapist-patient-info"></div>
         <p class="page-desc">Note scritte dall'utente per te: non è una chat in tempo reale, l'utente sa che le leggerai con calma, in genere prima del prossimo appuntamento. Non è un canale per le emergenze.</p>
         <div class="grid-2">
           <div class="card"><div class="card-title">Note dell'utente</div><div class="card-desc"></div>
@@ -811,6 +853,15 @@
           <div class="metric-card"><div class="metric-label">Streak</div><div class="metric-value" id="parent-child-streak">—</div><div class="metric-hint">Giorni consecutivi</div></div>
           <div class="metric-card"><div class="metric-label">Routine oggi</div><div class="metric-value" id="parent-child-routine-pct">—</div><div class="metric-hint">Completamento</div></div>
           <div class="metric-card"><div class="metric-label">Altre attività</div><div class="metric-value" id="parent-child-other-pct">—</div><div class="metric-hint">Completamento</div></div>
+        </div>
+
+        <div class="card" style="margin-bottom:18px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+            <div><div class="card-title" style="margin:0">Stelle</div><div class="card-desc" style="margin:0">Una stella per ogni giorno con tutte le attività completate; una settimana intera (lun-dom) = super stella.</div></div>
+            <div style="font-size:26px;font-weight:700;text-align:right"><span id="parent-child-stars-total">0</span> ⭐ &nbsp;<span id="parent-child-superstars-total">0</span> 🌟</div>
+          </div>
+          <div id="parent-child-stars-hint" style="font-size:12px;color:var(--muted-fg);margin-top:8px"></div>
+          <div id="parent-child-stars-week" style="display:flex;gap:10px;margin-top:12px"></div>
         </div>
 
         <div class="grid-2">

@@ -2,6 +2,14 @@
 // "Server" qui vuol dire: un programma Node.js sempre in esecuzione che
 // ascolta su una porta di rete (di default 3000) e risponde sia con i file
 // dell'interfaccia (cartella /public) sia con i dati via API (/api/...).
+// Carica le variabili del file .env (se esiste) senza librerie esterne.
+try {
+  const envPath = require('path').join(__dirname, '..', '.env');
+  require('fs').readFileSync(envPath, 'utf8').split('\n').forEach(line => {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
+    if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
+  });
+} catch (e) { /* nessun .env: va bene, si usano le variabili del sistema */ }
 require('./db'); // crea/apre il database e le tabelle al primo avvio
 const path = require('path');
 const http = require('http');

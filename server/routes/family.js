@@ -7,6 +7,7 @@ const db = require('../db');
 const { requireAuth, requireRole } = require('../middleware');
 const { publicUser, todayStr, generateLinkCode } = require('../helpers');
 const stats = require('../stats-engine');
+const { computeStars } = require('../stars');
 
 const router = express.Router();
 
@@ -28,7 +29,7 @@ router.post('/link', requireAuth, requireRole('parent'), (req, res) => {
   if (!code) return res.status(400).json({ error: 'Inserisci il codice.' });
 
   const child = db.prepare('SELECT * FROM users WHERE link_code = ? AND role = \'patient\'').get(code);
-  if (!child) return res.status(404).json({ error: 'Codice non valido. Chiedi a tuo figlio/a di generarne uno nuovo dal suo profilo.' });
+  if (!child) return res.status(404).json({ error: 'Codice non valido. Chiedi al tutor che segue tuo figlio/a di darti il codice corretto.' });
 
   const alreadyMe = db.prepare('SELECT * FROM parent_child WHERE parent_id = ? AND child_id = ?').get(req.user.id, child.id);
   if (alreadyMe) return res.status(409).json({ error: 'Sei già collegato a questo account.' });
@@ -87,6 +88,7 @@ router.get('/children/:id/overview', requireAuth, requireRole('parent'), (req, r
     agenda,
     checkins,
     summary,
+    stars: computeStars(childId),
     therapistLink: therapistLink || null,
     messages,
   });

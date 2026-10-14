@@ -387,6 +387,8 @@ textarea:focus,select:focus,input:focus{border-color:var(--primary);box-shadow:0
 
 /* ===== FEEDBACK ===== */
 .feedback{font-size:13px;color:var(--primary);margin-top:10px;display:none}
+.encourage-toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);background:var(--primary);color:#fff;padding:12px 20px;border-radius:12px;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.18);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:9999;max-width:90vw;text-align:center}
+.encourage-toast.show{opacity:1;transform:translate(-50%,0)}
 .feedback i{margin-right:4px}
 
 /* ===== LOADING ===== */

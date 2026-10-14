@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db');
 const { requireAuth, requireRole } = require('../middleware');
 const { generateLinkCode } = require('../helpers');
+const { sendMail } = require('../mailer');
 
 const router = express.Router();
 
@@ -73,6 +74,15 @@ router.post('/pair', requireAuth, requireRole('patient'), (req, res) => {
     SELECT pt.*, u.name as therapist_name, u.avatar as therapist_avatar, u.specialty as therapist_specialty
     FROM patient_therapist pt JOIN users u ON u.id = pt.therapist_id WHERE pt.patient_id = ?
   `).get(req.user.id);
+  // Avvisiamo il tutor anche via email (oltre all'avviso dentro l'app).
+  const tutor = db.prepare('SELECT name, email FROM users WHERE id = ?').get(therapist.id);
+  if (tutor) {
+    sendMail({
+      to: tutor.email,
+      subject: 'Nuova richiesta di collegamento su ADHD Coach',
+      text: `Ciao ${tutor.name}, ${req.user.nickname || req.user.name} ha chiesto di collegarsi a te su ADHD Coach.\n\nAccedi all'app e, nella tua dashboard, trovi la richiesta in attesa da accettare o rifiutare.`,
+    });
+  }
   res.json({ request });
 });
 
@@ -93,7 +103,7 @@ router.delete('/pair', requireAuth, requireRole('patient'), (req, res) => {
 // in carico: quelli in attesa vivono nella sezione "Richieste in attesa".
 router.get('/patients', requireAuth, requireRole('therapist'), (req, res) => {
   const patients = db.prepare(`
-    SELECT u.id, u.name, u.nickname, u.avatar, u.age_group, pt.created_at as linked_since
+    SELECT u.id, u.name, u.nickname, u.avatar, u.age_group, u.email, u.birth_date, u.phone, pt.created_at as linked_since
     FROM patient_therapist pt JOIN users u ON u.id = pt.patient_id
     WHERE pt.therapist_id = ? AND pt.status = 'active'
     ORDER BY u.name ASC
@@ -106,7 +116,7 @@ router.get('/patients', requireAuth, requireRole('therapist'), (req, res) => {
 // così il tutor capisce subito cosa si aspetta dall'app prima di accettare.
 router.get('/requests', requireAuth, requireRole('therapist'), (req, res) => {
   const requests = db.prepare(`
-    SELECT pt.id, pt.created_at, u.id as patient_id, u.name, u.nickname, u.avatar, u.age_group, u.goals
+    SELECT pt.id, pt.created_at, u.id as patient_id, u.name, u.nickname, u.avatar, u.age_group, u.goals, u.email, u.birth_date, u.phone
     FROM patient_therapist pt JOIN users u ON u.id = pt.patient_id
     WHERE pt.therapist_id = ? AND pt.status = 'pending'
     ORDER BY pt.created_at ASC

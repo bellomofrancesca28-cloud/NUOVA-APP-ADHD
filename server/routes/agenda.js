@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db');
 const { requireAuth, requireRole } = require('../middleware');
 const { CATEGORY_SETS, todayStr } = require('../helpers');
+const { computeStars } = require('../stars');
 
 const router = express.Router();
 
@@ -37,6 +38,13 @@ router.get('/month', requireAuth, requireRole('patient'), (req, res) => {
     GROUP BY item_date
   `).all(req.user.id, `${prefix}-%`);
   res.json({ days: rows });
+});
+
+// Stelle: ogni giorno in cui l'utente ha almeno un'attività e le ha completate
+// tutte vale una stella. Non c'è una tabella dedicata: la stella si calcola
+// dalle attività (se una viene riaperta, la stella di quel giorno sparisce).
+router.get('/stars', requireAuth, requireRole('patient'), (req, res) => {
+  res.json(computeStars(req.user.id));
 });
 
 router.post('/', requireAuth, requireRole('patient'), (req, res) => {

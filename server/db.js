@@ -241,4 +241,29 @@ if (parentChildTableInfo && parentChildTableInfo.sql.includes('child_id INTEGER 
   migrateParentChild();
 }
 
+// MIGRAZIONE: approvazione dei nuovi account tutor. "approved" vale 1 per
+// tutti gli account già esistenti (restano attivi) e per pazienti/genitori;
+// i nuovi tutor nascono con approved = 0 e un "approval_token" segreto, che
+// finisce solo nell'email di approvazione inviata all'amministratrice.
+const userColumns5 = db.prepare("PRAGMA table_info(users)").all().map(c => c.name);
+if (!userColumns5.includes('approved')) {
+  db.exec('ALTER TABLE users ADD COLUMN approved INTEGER DEFAULT 1');
+}
+if (!userColumns5.includes('approval_token')) {
+  db.exec('ALTER TABLE users ADD COLUMN approval_token TEXT');
+}
+// Nome del file PDF del curriculum del tutor (salvato in una cartella privata,
+// non pubblica: lo vede solo chi approva le richieste).
+if (!userColumns5.includes('cv_file')) {
+  db.exec('ALTER TABLE users ADD COLUMN cv_file TEXT');
+}
+// Data di nascita (YYYY-MM-DD) e cellulare di utenti e genitori: li vede il
+// tutor con cui l'utente si collega.
+if (!userColumns5.includes('birth_date')) {
+  db.exec('ALTER TABLE users ADD COLUMN birth_date TEXT');
+}
+if (!userColumns5.includes('phone')) {
+  db.exec('ALTER TABLE users ADD COLUMN phone TEXT');
+}
+
 module.exports = db;

@@ -27,7 +27,7 @@ function daysAgoStr(n) {
 // mandare i dati al browser. Non vogliamo mai far uscire quel campo dall'API.
 function publicUser(u) {
   if (!u) return null;
-  const { password_hash, ...rest } = u;
+  const { password_hash, approval_token, ...rest } = u;
   return rest;
 }
 

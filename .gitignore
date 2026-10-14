@@ -1,4 +1,7 @@
 node_modules/
 server/data/*.sqlite
+server/data/*.sqlite-shm
+server/data/*.sqlite-wal
 public/uploads/
+server/data/cv/
 .env

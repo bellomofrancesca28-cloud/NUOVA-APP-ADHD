@@ -77,7 +77,12 @@ function setRegisterRole(choice) {
   ['teen', 'adult', 'parent', 'therapist'].forEach(c => {
     document.getElementById('role-btn-' + c).classList.toggle('active', c === choice);
   });
-  document.getElementById('reg-specialty-group').style.display = choice === 'therapist' ? 'block' : 'none';
+  ['specialty', 'bio', 'cv'].forEach(f => {
+    document.getElementById('reg-' + f + '-group').style.display = choice === 'therapist' ? 'block' : 'none';
+  });
+  ['birth', 'phone'].forEach(f => {
+    document.getElementById('reg-' + f + '-group').style.display = choice === 'therapist' ? 'none' : 'block';
+  });
 }
 
 async function doLogin() {
@@ -110,11 +115,36 @@ async function doRegister() {
     email: document.getElementById('reg-email').value.trim(),
     password: document.getElementById('reg-password').value,
   };
+  if (registerRole !== 'therapist') {
+    payload.birthDate = document.getElementById('reg-birth').value;
+    payload.phone = document.getElementById('reg-phone').value.trim();
+    if (!payload.birthDate || !payload.phone) { errEl.textContent = 'Inserisci data di nascita e numero di cellulare.'; return; }
+  }
   if (registerRole === 'patient') payload.ageRange = registerAgeRange;
-  else if (registerRole === 'therapist') payload.specialty = document.getElementById('reg-specialty').value.trim();
+  else if (registerRole === 'therapist') {
+    payload.specialty = document.getElementById('reg-specialty').value.trim();
+    payload.bio = document.getElementById('reg-bio').value.trim();
+    if (!payload.specialty || !payload.bio) { errEl.textContent = 'Compila specializzazione e breve descrizione.'; return; }
+    const cvFile = document.getElementById('reg-cv').files[0];
+    if (!cvFile) { errEl.textContent = 'Carica il tuo CV in formato PDF.'; return; }
+    if (cvFile.type !== 'application/pdf') { errEl.textContent = 'Il CV deve essere un file PDF.'; return; }
+    if (cvFile.size > 3 * 1024 * 1024) { errEl.textContent = 'CV troppo grande: massimo 3MB.'; return; }
+    payload.cvBase64 = await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = () => reject(new Error('Non riesco a leggere il file.'));
+      r.readAsDataURL(cvFile);
+    });
+  }
 
   try {
     const data = await api.post('/api/auth/register', payload);
+    if (data.pendingApproval) {
+      // Nuovo tutor: l'account viene attivato solo dopo l'approvazione via email.
+      document.getElementById('form-register').style.display = 'none';
+      document.getElementById('register-pending').style.display = 'block';
+      return;
+    }
     state.user = data.user;
     state.therapistLink = null;
     showNotificationsPrefs();
@@ -371,6 +401,9 @@ async function enterApp() {
   document.getElementById('dd-name').textContent = displayName;
   document.getElementById('dd-role').textContent = state.user.role === 'therapist' ? (state.user.specialty || 'Tutor') : (state.user.role === 'parent' ? 'Genitore' : (state.user.job || 'Utente'));
 
+  if (state.user.role === 'therapist') startRequestsPolling();
+  else clearInterval(requestsPollTimer);
+
   if (state.user.role === 'patient') {
     document.getElementById('home-greeting').textContent = `Ciao ${displayName}.`;
     document.getElementById('home-sub').textContent = "Bentornato/a: qui trovi il Coach IA, l'agenda e la tua dashboard.";
@@ -384,6 +417,7 @@ async function enterApp() {
     } else {
       tutorBanner.style.display = 'none';
     }
+    showWelcomeBackIfNeeded();
   } else if (state.user.role === 'parent') {
     document.getElementById('home-greeting').textContent = `Bentornato/a, ${displayName}.`;
     document.getElementById('home-sub').textContent = 'Qui trovi i tuoi figli/e collegati e quello che condividono.';
@@ -811,6 +845,25 @@ async function loadDashboardPage() {
   renderAgendaPreview();
   renderSuggested();
   renderTodaySummary();
+  loadStars();
+}
+
+// Stelle giornaliere: totale + ultimi 7 giorni (calcolate dal server).
+async function loadStars() {
+  try {
+    const s = await api.get('/api/agenda/stars');
+    document.getElementById('dash-stars-total').textContent = s.total;
+    document.getElementById('dash-superstars-total').textContent = s.superStars;
+    document.getElementById('dash-superstar-hint').textContent = s.superThisWeek
+      ? 'Settimana completa: hai ottenuto la super stella! 🌟'
+      : `Completa tutte le attività da lunedì a domenica per ottenere la super stella 🌟 — questa settimana: ${s.weekStars}/7.`;
+    const week = document.getElementById('dash-stars-week');
+    week.innerHTML = s.week.map(d => {
+      const label = new Date(d.date + 'T12:00:00').toLocaleDateString('it-IT', { weekday: 'short' });
+      return `<div style="text-align:center;font-size:11px;color:var(--muted-fg)"><div style="font-size:22px;${d.star ? '' : 'filter:grayscale(1);opacity:.3'}">⭐</div>${label}</div>`;
+    }).join('');
+    return s;
+  } catch (e) { /* le stelle sono un extra: se falliscono non blocchiamo la pagina */ }
 }
 
 // Aggiorniamo subito la UI (senza aspettare la rete) ad ogni movimento dello
@@ -947,6 +1000,12 @@ function agendaRowEl(item, compact, opts) {
     if (e.target.closest('.agenda-expand-btn')) return;
     await api.patch('/api/agenda/' + item.id, { status: done ? 'todo' : 'done' });
     await onChange();
+    const stars = await loadStars();
+    if (!done) {
+      const allDone = state.agendaItems && state.agendaItems.length && state.agendaItems.every(i => i.status === 'done');
+      if (allDone && stars && stars.todayStar && stars.superThisWeek) showEncouragement(SUPER_STAR_MESSAGES);
+      else showEncouragement(allDone ? ALL_DONE_MESSAGES : TASK_DONE_MESSAGES);
+    }
   });
   if (!compact) {
     const expandBtn = row.querySelector('.agenda-expand-btn');
@@ -1422,6 +1481,89 @@ async function saveCheckin() {
   const el = document.getElementById('checkin-saved');
   el.style.display = 'block'; setTimeout(() => el.style.display = 'none', 2500);
   await loadCheckinDiary();
+  showEncouragement(CHECKIN_DONE_MESSAGES);
+}
+
+/* ========================= RINFORZI POSITIVI ========================= */
+// Piccoli messaggi di incoraggiamento dentro l'app (non notifiche del
+// telefono): compaiono per qualche secondo dopo un'azione positiva, e un
+// banner gentile accoglie chi manca da qualche giorno.
+const TASK_DONE_MESSAGES = [
+  'Ottimo, una cosa in meno! 🎉',
+  'Bravo/a, ce l\'hai fatta! 💪',
+  'Un passo alla volta: stai andando bene. ✨',
+  'Fatto! Goditi un attimo di soddisfazione. 🌟',
+];
+const ALL_DONE_MESSAGES = [
+  'Hai completato tutto per oggi: ti sei guadagnato/a una stella! ⭐',
+  'Giornata completata, ottimo lavoro: ecco la tua stella! ⭐',
+];
+const SUPER_STAR_MESSAGES = [
+  'Settimana perfetta, da lunedì a domenica! Hai conquistato la SUPER STELLA! 🌟🎉',
+];
+const CHECKIN_DONE_MESSAGES = [
+  'Grazie per esserti fermato/a a osservare come stai. 💚',
+  'Check-in salvato: prenderti cura di te conta davvero. 🌱',
+  'Bravo/a, ascoltarsi è già un bel passo. ✨',
+];
+function showEncouragement(messages) {
+  if (state.user && state.user.role !== 'patient') return;
+  showToast(messages[Math.floor(Math.random() * messages.length)]);
+}
+function showToast(text) {
+  let toast = document.getElementById('encourage-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'encourage-toast';
+    toast.className = 'encourage-toast';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = text;
+  toast.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => toast.classList.remove('show'), 5000);
+}
+
+// Il tutor non deve ricaricare la pagina per vedere una nuova richiesta di
+// collegamento: ogni 20 secondi controlliamo e, se ce n'è una in più,
+// mostriamo un avviso e aggiorniamo l'elenco "Richieste in attesa".
+let knownRequestCount = null;
+let requestsPollTimer = null;
+async function pollTherapistRequests() {
+  try {
+    const { requests } = await api.get('/api/therapists/requests');
+    if (knownRequestCount === null) {
+      if (requests.length) showToast(`Hai ${requests.length} richiest${requests.length === 1 ? 'a' : 'e'} di collegamento in attesa. 🔔`);
+    } else if (requests.length > knownRequestCount) {
+      showToast('Nuova richiesta di collegamento da un utente! 🔔');
+    }
+    if (knownRequestCount !== requests.length) await loadTherapistRequests();
+    knownRequestCount = requests.length;
+  } catch (e) { /* silenzioso: riproviamo al prossimo giro */ }
+}
+function startRequestsPolling() {
+  knownRequestCount = null;
+  clearInterval(requestsPollTimer);
+  pollTherapistRequests();
+  requestsPollTimer = setInterval(pollTherapistRequests, 20000);
+}
+// Se l'utente non apre l'app da 2 o più giorni, al ritorno vede un messaggio
+// gentile (senza colpevolizzare). Ricordiamo l'ultimo accesso per utente.
+function showWelcomeBackIfNeeded() {
+  const banner = document.getElementById('welcome-back-banner');
+  if (!banner) return;
+  const key = 'lastVisit_' + state.user.id;
+  const last = localStorage.getItem(key);
+  const today = new Date().toISOString().slice(0, 10);
+  banner.style.display = 'none';
+  if (last) {
+    const days = Math.round((new Date(today) - new Date(last)) / 86400000);
+    if (days >= 2) banner.style.display = 'block';
+  }
+  localStorage.setItem(key, today);
+}
+function dismissWelcomeBack() {
+  document.getElementById('welcome-back-banner').style.display = 'none';
 }
 
 /* ========================= COACH ========================= */
@@ -1578,6 +1720,7 @@ async function loadTherapistRequests() {
       <div class="review-slot-info">
         <p>${escapeHtml(r.avatar || '🙂')} ${escapeHtml(r.nickname || r.name)}</p>
         <span>${r.age_group === 'teen' ? 'Teen' : 'Adulto'} · Richiesta del ${new Date(r.created_at).toLocaleDateString('it-IT')}</span>
+        ${contactInfoHtml(r)}
         ${goalsHtml}
       </div>
       <div class="review-slot-actions"></div>`;
@@ -1601,14 +1744,26 @@ async function respondTherapistRequest(id, action) {
     await api.post(`/api/therapists/requests/${id}/${action}`);
     await loadTherapistPage();
   } catch (e) {
-    alert(e.message);
+    alert(/ruolo/.test(e.message)
+      ? 'Nel frattempo hai effettuato l\'accesso con un altro account (in un\'altra scheda dello stesso browser). Esci, rientra come tutor e riprova.'
+      : e.message);
   }
+}
+
+// Dati di contatto dell'utente (data di nascita, email, cellulare) mostrati al
+// tutor con cui si collega.
+function contactInfoHtml(u) {
+  const birth = u.birth_date ? new Date(u.birth_date + 'T12:00:00').toLocaleDateString('it-IT') : '—';
+  return `<div style="font-size:12px;color:var(--muted-fg);margin-top:6px;line-height:1.6">
+    Nato/a il ${escapeHtml(birth)}<br>Email: ${escapeHtml(u.email || '—')}<br>Cellulare: ${escapeHtml(u.phone || '—')}</div>`;
 }
 
 async function openTherapistChat(patientId, displayName, ageGroup) {
   state.currentTherapistChatPatientId = patientId;
   state.currentTherapistChatPatientName = displayName;
   navigateTo('therapist-chat');
+  const pInfo = (state.therapistPatients || []).find(p => p.id === patientId);
+  document.getElementById('therapist-patient-info').innerHTML = pInfo ? contactInfoHtml(pInfo) : '';
   document.getElementById('therapist-chat-title').textContent = 'Note di ' + displayName;
   const familyCard = document.getElementById('therapist-family-code-card');
   document.getElementById('therapist-family-code-error').textContent = '';
@@ -1829,7 +1984,7 @@ async function loadParentPage() {
   state.children = children;
   const list = document.getElementById('parent-children-list'); list.innerHTML = '';
   if (!children.length) {
-    list.innerHTML = '<p class="empty-hint">Nessun account collegato. Chiedi a tuo figlio/a il codice dal suo profilo.</p>';
+    list.innerHTML = '<p class="empty-hint">Nessun account collegato. Chiedi il codice al tutor che segue tuo figlio/a.</p>';
     return;
   }
   children.forEach(c => {
@@ -1868,6 +2023,16 @@ async function loadParentChildPage() {
 
   // Statistiche sintetiche (stessa fonte usata nella dashboard del figlio/a)
   const s = data.summary;
+  const st = data.stars;
+  document.getElementById('parent-child-stars-total').textContent = st.total;
+  document.getElementById('parent-child-superstars-total').textContent = st.superStars;
+  document.getElementById('parent-child-stars-hint').textContent = st.superThisWeek
+    ? 'Settimana completa: super stella ottenuta! 🌟'
+    : `Questa settimana: ${st.weekStars}/7 stelle.`;
+  document.getElementById('parent-child-stars-week').innerHTML = st.week.map(d => {
+    const label = new Date(d.date + 'T12:00:00').toLocaleDateString('it-IT', { weekday: 'short' });
+    return `<div style="text-align:center;font-size:11px;color:var(--muted-fg)"><div style="font-size:22px;${d.star ? '' : 'filter:grayscale(1);opacity:.3'}">⭐</div>${label}</div>`;
+  }).join('');
   document.getElementById('parent-child-streak').textContent = s.streak + ' giorni';
   document.getElementById('parent-child-routine-pct').textContent = s.goalRings.routine.pct + '%';
   document.getElementById('parent-child-other-pct').textContent = s.goalRings.other.pct + '%';

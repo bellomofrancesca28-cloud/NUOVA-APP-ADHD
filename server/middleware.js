@@ -11,6 +11,9 @@ function requireAuth(req, res, next) {
   if (!payload) return res.status(401).json({ error: 'Non autenticato. Effettua di nuovo il login.' });
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(payload.id);
   if (!user) return res.status(401).json({ error: 'Utente non trovato.' });
+  if (user.role === 'therapist' && user.approved === 0) {
+    return res.status(403).json({ error: 'Il tuo account tutor è in attesa di approvazione.' });
+  }
   req.user = user; // riga completa dal database, sempre aggiornata
   next();
 }
