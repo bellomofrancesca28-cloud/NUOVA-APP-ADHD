@@ -135,6 +135,15 @@ router.post('/requests/:id/accept', requireAuth, requireRole('therapist'), (req,
   const request = ownedPendingRequest(req.params.id, req.user.id);
   if (!request) return res.status(404).json({ error: 'Richiesta non trovata.' });
   db.prepare('UPDATE patient_therapist SET status = \'active\' WHERE id = ?').run(request.id);
+  // Avvisiamo l'utente via email che il collegamento è attivo.
+  const patient = db.prepare('SELECT name, nickname, email FROM users WHERE id = ?').get(request.patient_id);
+  if (patient && patient.email) {
+    sendMail({
+      to: patient.email,
+      subject: 'Il tuo tutor ha accettato il collegamento su ADHD Coach',
+      text: `Ciao ${patient.nickname || patient.name}, ${req.user.name} ha accettato la tua richiesta: ora siete collegati su ADHD Coach.\n\nAccedi all'app per iniziare.`,
+    });
+  }
   res.json({ ok: true });
 });
 
