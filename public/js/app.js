@@ -448,13 +448,11 @@ function applyRoleVisibility() {
   if (role === 'patient') {
     const teen = state.user.age_group === 'teen';
     document.getElementById('sidebar-tag').textContent = teen ? 'Area adolescente' : 'Area adulto';
-    document.getElementById('nav-section-dashboard').textContent = teen ? 'Adolescente' : 'Adulto';
     document.getElementById('dash-badge').textContent = teen ? 'Adolescente' : 'Adulto';
     document.getElementById('dash-badge').className = 'page-badge' + (teen ? '' : ' page-badge-adult');
     document.getElementById('calendario-badge').className = 'page-badge' + (teen ? '' : ' page-badge-adult');
     document.getElementById('attivita-badge').className = 'page-badge' + (teen ? '' : ' page-badge-adult');
     document.getElementById('checkin-badge').className = 'page-badge' + (teen ? '' : ' page-badge-adult');
-    document.getElementById('revisione-badge').className = 'page-badge' + (teen ? '' : ' page-badge-adult');
     document.getElementById('dash-checkin-btn').className = 'btn ' + (teen ? 'btn-primary' : 'btn-adult');
     document.getElementById('attivita-add-btn').className = 'btn ' + (teen ? 'btn-primary' : 'btn-adult');
     document.getElementById('dash-subtab-bar').className = 'subtab-bar' + (teen ? '' : ' adult');
@@ -477,7 +475,6 @@ const PAGE_LOADERS = {
   calendario: loadCalendarioPage,
   attivita: loadAttivitaPage,
   checkin: loadCheckinPage,
-  revisione: loadRevisionePage,
   messaggi: loadMessagesPage,
   therapist: loadTherapistPage,
   'therapist-review': loadTherapistReviewPage,
@@ -528,7 +525,8 @@ function toggleAttivitaAddForm() {
   if (willShow) {
     const routineCat = ROUTINE_CATEGORY[state.user.age_group];
     const catSelect = document.getElementById('attivita-new-cat');
-    catSelect.innerHTML = state.categories.filter(c => c !== routineCat).map(c => `<option value="${c}">${c}</option>`).join('');
+    // Per gli adulti "Lavoro" è selezionabile anche qui (Casa, Benessere, Lavoro).
+    catSelect.innerHTML = state.categories.filter(c => state.user.age_group !== 'teen' || c !== routineCat).map(c => `<option value="${c}">${c}</option>`).join('');
     document.getElementById('attivita-new-title').focus();
   }
 }
@@ -803,7 +801,9 @@ function parseStepMinutes(text) {
   return m ? parseInt(m[1], 10) : 15;
 }
 function startTimerForStep(minutes, label) {
-  navigateTo('timer');
+  navigateTo('attivita');
+  const timerCard = document.getElementById('attivita-timer-card');
+  if (timerCard) timerCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
   if (timerRunning) { clearInterval(timerInterval); timerRunning = false; }
   timerTotalSeconds = minutes*60;
   timerRemaining = timerTotalSeconds;
@@ -874,6 +874,15 @@ function markQuickMood(label) {
   document.querySelectorAll('#dash-mood-options .mood-btn').forEach(b => {
     b.classList.toggle('selected', b.dataset.mood === label);
   });
+  const saved = document.getElementById('dash-mood-saved');
+  if (saved) {
+    if (label && QUICK_MOOD_LABELS[label]) {
+      saved.style.display = 'block';
+      saved.textContent = `${QUICK_MOOD_FACES[label]} Registrato nel diario: oggi ti senti "${QUICK_MOOD_LABELS[label].toLowerCase()}".`;
+    } else {
+      saved.style.display = 'none';
+    }
+  }
 }
 async function loadQuickMood() {
   try {
@@ -885,7 +894,6 @@ async function saveQuickMood(label) {
   try {
     await api.post('/api/checkins/quick', { label });
     markQuickMood(label);
-    showToast(QUICK_MOOD_REPLIES[label]);
   } catch (e) {
     showToast(e.message || 'Non sono riuscito a salvare.');
   }
@@ -1444,7 +1452,7 @@ async function loadAttivitaPage() {
 }
 function renderAttivitaGroups() {
   const routineCat = ROUTINE_CATEGORY[state.user.age_group];
-  const otherCats = state.categories.filter(c => c !== routineCat);
+  const otherCats = state.categories.filter(c => state.user.age_group !== 'teen' || c !== routineCat);
   const container = document.getElementById('attivita-groups'); container.innerHTML = '';
   const doneClass = state.user.age_group === 'teen' ? 'done-icon' : 'done-icon-adult';
   otherCats.forEach(cat => {
@@ -1515,7 +1523,7 @@ async function loadCheckinDiary() {
 }
 function loadCheckinPage() {
   const teen = state.user.age_group === 'teen';
-  document.getElementById('checkin-badge').textContent = teen ? 'Check-in · Adolescente' : 'Check-in · Adulto';
+  document.getElementById('checkin-badge').textContent = teen ? 'Diario · Adolescente' : 'Diario · Adulto';
   const fields = CHECKIN_FIELDS[teen ? 'teen' : 'adult'];
   const div = document.getElementById('checkin-fields'); div.innerHTML = '';
   fields.forEach(([key, label]) => {
@@ -1701,6 +1709,7 @@ async function loadMessagesPage() {
   if (!messages.length) { list.innerHTML = '<p class="empty-hint">Ancora nessuna nota.</p>'; }
   messages.forEach(m => renderMessageRow(list, m, 'patient'));
   document.getElementById('new-msg').value = '';
+  await loadRevisionePage();
 }
 async function sendMsg() {
   const ta = document.getElementById('new-msg'); const txt = ta.value.trim(); if (!txt) return;
@@ -1953,7 +1962,8 @@ async function loadRevisionePage() {
       onCancel: () => cancelReviewSlot(confirmedUpcoming.id),
     }));
   } else {
-    nextCard.style.display = 'none';
+    nextCard.style.display = 'block';
+    nextEl.innerHTML = '<p class="empty-hint">Nessuna revisione in programma. Il tuo tutor ti proporrà un orario.</p>';
   }
 
   const pendingCard = document.getElementById('revisione-pending-card');
@@ -1963,7 +1973,8 @@ async function loadRevisionePage() {
     pendingEl.innerHTML = '';
     pending.forEach(s => pendingEl.appendChild(reviewSlotRow(s, { showRespond: true })));
   } else {
-    pendingCard.style.display = 'none';
+    pendingCard.style.display = 'block';
+    pendingEl.innerHTML = '<p class="empty-hint">Nessun orario da confermare.</p>';
   }
 
   const historyEl = document.getElementById('revisione-history');
@@ -2026,7 +2037,7 @@ async function proposeReviewSlot() {
 // Chiamata da call.js quando una videochiamata finisce, per aggiornare la
 // pagina Revisione se è quella che si sta guardando in quel momento.
 async function refreshCurrentReviewPage() {
-  if (document.getElementById('page-revisione').classList.contains('active')) await loadRevisionePage();
+  if (document.getElementById('page-messaggi').classList.contains('active')) await loadRevisionePage();
   if (document.getElementById('page-therapist-review').classList.contains('active')) await loadTherapistReviewPage();
 }
 

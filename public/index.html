@@ -269,14 +269,11 @@
     <nav class="nav">
       <div class="nav-section">Generale</div>
       <button class="nav-item active" data-page="home" onclick="navigateTo('home')"><span class="nav-icon-chip chip-dashboard"><i class="ti ti-layout-dashboard"></i></span>Home</button>
-      <button class="nav-item role-patient" data-page="timer" onclick="navigateTo('timer')"><span class="nav-icon-chip chip-timer"><i class="ti ti-clock-play"></i></span>Timer focus</button>
       <button class="nav-item role-patient" data-page="coach" onclick="navigateTo('coach')"><span class="nav-icon-chip chip-coach"><i class="ti ti-sparkles"></i></span>Coach IA</button>
       <button class="nav-item role-patient" data-page="messaggi" onclick="navigateTo('messaggi')"><span class="nav-icon-chip chip-messaggi"><i class="ti ti-user-cog"></i></span>Il tuo tutor</button>
-      <button class="nav-item role-patient" data-page="revisione" onclick="navigateTo('revisione')"><span class="nav-icon-chip chip-revisione"><i class="ti ti-video"></i></span>Revisione</button>
-      <div class="nav-section role-patient" id="nav-section-dashboard">Home</div>
       <button class="nav-item role-patient" data-page="calendario" onclick="navigateTo('calendario')"><span class="nav-icon-chip chip-routine"><i class="ti ti-calendar"></i></span>Calendario</button>
       <button class="nav-item role-patient" data-page="attivita" onclick="navigateTo('attivita')"><span class="nav-icon-chip chip-attivita"><i class="ti ti-checklist"></i></span>Attività</button>
-      <button class="nav-item role-patient" data-page="checkin" onclick="navigateTo('checkin')"><span class="nav-icon-chip chip-checkin"><i class="ti ti-heart-rate-monitor"></i></span>Check-in</button>
+      <button class="nav-item role-patient" data-page="checkin" onclick="navigateTo('checkin')"><span class="nav-icon-chip chip-checkin"><i class="ti ti-heart-rate-monitor"></i></span>Diario</button>
       <button class="nav-item role-parent" data-page="parent" onclick="navigateTo('parent')" style="display:none"><span class="nav-icon-chip chip-dashboard"><i class="ti ti-users"></i></span>I miei figli/e</button>
     </nav>
     <div class="sidebar-footer">
@@ -316,34 +313,6 @@
           <i class="ti ti-shield-check" style="color:var(--primary);font-size:26px;margin-bottom:10px"></i>
           <div class="card-title">Guardrail MVP</div>
           <p style="font-size:13px;color:var(--muted-fg);line-height:1.7;margin-top:6px">L'app non fa diagnosi, non prescrive farmaci, non fa terapia e non sostituisce tutor, medico o servizi di emergenza. I dati degli utenti sono visibili solo al proprio tutor collegato, mai ad altri utenti o tutor.</p>
-        </div>
-      </div>
-
-      <!-- TIMER FOCUS -->
-      <div id="page-timer" class="page">
-        <span class="page-badge">Strumento</span>
-        <h1>Timer per il focus</h1>
-        <p class="page-desc">Scegli una durata breve, avvia il timer e concentrati solo su questo. Quando suona, fai una pausa vera — non un altro compito.</p>
-        <div class="card" style="max-width:420px;text-align:center;margin:0 auto">
-          <div id="timer-context" style="display:none;margin-bottom:14px"><span class="page-badge">Stai cronometrando</span> <strong id="timer-context-text"></strong></div>
-          <div class="timer-ring-wrap">
-            <svg width="220" height="220" viewBox="0 0 220 220">
-              <circle cx="110" cy="110" r="100" fill="none" stroke="var(--muted)" stroke-width="14"/>
-              <circle cx="110" cy="110" r="100" fill="none" stroke="var(--primary)" stroke-width="14" stroke-linecap="round" id="timer-ring-fill" transform="rotate(-90 110 110)"/>
-            </svg>
-            <div class="timer-display" id="timer-display">15:00</div>
-          </div>
-          <div class="timer-presets">
-            <button class="timer-preset-btn" onclick="setTimerDuration(5,this)">5 min</button>
-            <button class="timer-preset-btn" onclick="setTimerDuration(10,this)">10 min</button>
-            <button class="timer-preset-btn active" onclick="setTimerDuration(15,this)">15 min</button>
-            <button class="timer-preset-btn" onclick="setTimerDuration(25,this)">25 min</button>
-          </div>
-          <div class="btn-row" style="justify-content:center;margin-top:18px;margin-bottom:0">
-            <button class="btn btn-primary" id="timer-start-btn" onclick="toggleTimer()"><i class="ti ti-player-play"></i>Avvia</button>
-            <button class="btn" onclick="resetTimer()"><i class="ti ti-refresh"></i>Reset</button>
-          </div>
-          <div class="feedback" id="timer-done-msg" style="display:none;margin-top:16px"><i class="ti ti-confetti"></i> Tempo scaduto — bel lavoro. Ora fai una pausa vera.</div>
         </div>
       </div>
 
@@ -431,9 +400,9 @@
       <div id="page-dashboard" class="page">
         <span class="page-badge" id="dash-badge">Home</span>
         <h1 id="dash-greeting">Ciao.</h1>
-        <p class="page-desc">La dashboard raccoglie check-in, routine e attività di oggi.</p>
+        <p class="page-desc">La Home raccoglie diario, routine e attività di oggi.</p>
         <div class="btn-row">
-          <button class="btn btn-primary" id="dash-checkin-btn" onclick="navigateTo('checkin')"><i class="ti ti-plus"></i>Nuovo check-in</button>
+          <button class="btn btn-primary" id="dash-checkin-btn" onclick="navigateTo('checkin')"><i class="ti ti-plus"></i>Apri il diario</button>
           <button class="btn" onclick="navigateTo('messaggi')"><i class="ti ti-message"></i>Il tuo tutor</button>
         </div>
 
@@ -446,6 +415,7 @@
             <button type="button" class="mood-btn" data-mood="triste" onclick="saveQuickMood('triste')"><span class="mood-face">😢</span><span>Triste</span></button>
             <button type="button" class="mood-btn" data-mood="arrabbiato" onclick="saveQuickMood('arrabbiato')"><span class="mood-face">😠</span><span>Arrabbiato</span></button>
           </div>
+          <div id="dash-mood-saved" style="display:none;margin-top:10px;font-size:13px;color:var(--muted-fg)"></div>
         </div>
 
         <div class="card role-patient" id="dash-state-card">
@@ -647,33 +617,34 @@
             <button class="btn btn-primary" onclick="submitAttivitaAdd()"><i class="ti ti-plus"></i>Aggiungi</button>
           </div>
         </div>
+        <div class="card" id="attivita-timer-card" style="max-width:420px;text-align:center;margin:0 0 18px">
+          <div class="card-title">Timer per il focus</div><div class="card-desc">Scegli una durata, avvia e concentrati solo su questo. Quando suona, fai una pausa vera.</div>
+          <div id="timer-context" style="display:none;margin-bottom:14px"><span class="page-badge">Stai cronometrando</span> <strong id="timer-context-text"></strong></div>
+          <div class="timer-ring-wrap">
+            <svg width="220" height="220" viewBox="0 0 220 220">
+              <circle cx="110" cy="110" r="100" fill="none" stroke="var(--muted)" stroke-width="14"/>
+              <circle cx="110" cy="110" r="100" fill="none" stroke="var(--primary)" stroke-width="14" stroke-linecap="round" id="timer-ring-fill" transform="rotate(-90 110 110)"/>
+            </svg>
+            <div class="timer-display" id="timer-display">15:00</div>
+          </div>
+          <div class="timer-presets">
+            <button class="timer-preset-btn" onclick="setTimerDuration(5,this)">5 min</button>
+            <button class="timer-preset-btn" onclick="setTimerDuration(10,this)">10 min</button>
+            <button class="timer-preset-btn active" onclick="setTimerDuration(15,this)">15 min</button>
+            <button class="timer-preset-btn" onclick="setTimerDuration(25,this)">25 min</button>
+          </div>
+          <div class="btn-row" style="justify-content:center;margin-top:18px;margin-bottom:0">
+            <button class="btn btn-primary" id="timer-start-btn" onclick="toggleTimer()"><i class="ti ti-player-play"></i>Avvia</button>
+            <button class="btn" onclick="resetTimer()"><i class="ti ti-refresh"></i>Reset</button>
+          </div>
+          <div class="feedback" id="timer-done-msg" style="display:none;margin-top:16px"><i class="ti ti-confetti"></i> Tempo scaduto — bel lavoro. Ora fai una pausa vera.</div>
+        </div>
         <div id="attivita-groups"></div>
-      </div>
-
-      <!-- REVISIONE (paziente) -->
-      <div id="page-revisione" class="page">
-        <span class="page-badge" id="revisione-badge">Revisione</span><h1>Revisione con il tuo tutor</h1>
-        <p class="page-desc">Un breve incontro video da 15 minuti per fare il punto insieme. Il tutor propone l'orario, tu confermi o rifiuti.</p>
-
-        <div class="card" id="revisione-next-card" style="display:none">
-          <div class="card-title">Prossima revisione confermata</div><div class="card-desc"></div>
-          <div id="revisione-next"></div>
-        </div>
-
-        <div class="card" id="revisione-pending-card" style="display:none">
-          <div class="card-title">In attesa della tua risposta</div><div class="card-desc">Il tuo tutor ha proposto questi orari.</div>
-          <div id="revisione-pending"></div>
-        </div>
-
-        <div class="card">
-          <div class="card-title">Storico</div><div class="card-desc"></div>
-          <div id="revisione-history"></div>
-        </div>
       </div>
 
       <!-- CHECK-IN -->
       <div id="page-checkin" class="page">
-        <span class="page-badge" id="checkin-badge">Check-in</span><h1>Come va adesso?</h1>
+        <span class="page-badge" id="checkin-badge">Diario</span><h1>Come va adesso?</h1>
         <p class="page-desc">Un check-in rapido. Non è una valutazione diagnostica.</p>
         <div class="card" style="max-width:540px"><div class="card-title">Nuovo check-in</div><div class="card-desc">Muovi i cursori.</div>
           <div id="checkin-fields"></div>
@@ -843,6 +814,23 @@
             <button class="btn btn-primary" style="margin-top:14px" onclick="sendMsg()"><i class="ti ti-device-floppy"></i>Salva nota</button>
             <div class="feedback" id="msg-sent"><i class="ti ti-check"></i> Nota salvata</div>
           </div>
+        </div>
+
+        <h2 style="font-size:18px;margin:28px 0 4px">Revisione con il tuo tutor</h2>
+        <p class="page-desc" style="margin-bottom:12px">Un breve incontro video da 15 minuti per fare il punto insieme. Il tutor propone l'orario, tu confermi o rifiuti.</p>
+        <div class="card" id="revisione-next-card">
+          <div class="card-title">Prossima revisione confermata</div><div class="card-desc"></div>
+          <div id="revisione-next"></div>
+        </div>
+
+        <div class="card" id="revisione-pending-card">
+          <div class="card-title">In attesa della tua risposta</div><div class="card-desc">Il tuo tutor ha proposto questi orari.</div>
+          <div id="revisione-pending"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Storico</div><div class="card-desc"></div>
+          <div id="revisione-history"></div>
         </div>
       </div>
 
