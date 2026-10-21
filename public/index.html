@@ -268,16 +268,15 @@
     </div>
     <nav class="nav">
       <div class="nav-section">Generale</div>
-      <button class="nav-item active" data-page="home" onclick="navigateTo('home')"><span class="nav-icon-chip chip-dashboard"><i class="ti ti-layout-dashboard"></i></span>Dashboard</button>
+      <button class="nav-item active" data-page="home" onclick="navigateTo('home')"><span class="nav-icon-chip chip-dashboard"><i class="ti ti-layout-dashboard"></i></span>Home</button>
       <button class="nav-item role-patient" data-page="timer" onclick="navigateTo('timer')"><span class="nav-icon-chip chip-timer"><i class="ti ti-clock-play"></i></span>Timer focus</button>
       <button class="nav-item role-patient" data-page="coach" onclick="navigateTo('coach')"><span class="nav-icon-chip chip-coach"><i class="ti ti-sparkles"></i></span>Coach IA</button>
       <button class="nav-item role-patient" data-page="messaggi" onclick="navigateTo('messaggi')"><span class="nav-icon-chip chip-messaggi"><i class="ti ti-user-cog"></i></span>Il tuo tutor</button>
       <button class="nav-item role-patient" data-page="revisione" onclick="navigateTo('revisione')"><span class="nav-icon-chip chip-revisione"><i class="ti ti-video"></i></span>Revisione</button>
-      <div class="nav-section role-patient" id="nav-section-dashboard">Dashboard</div>
+      <div class="nav-section role-patient" id="nav-section-dashboard">Home</div>
       <button class="nav-item role-patient" data-page="calendario" onclick="navigateTo('calendario')"><span class="nav-icon-chip chip-routine"><i class="ti ti-calendar"></i></span>Calendario</button>
       <button class="nav-item role-patient" data-page="attivita" onclick="navigateTo('attivita')"><span class="nav-icon-chip chip-attivita"><i class="ti ti-checklist"></i></span>Attività</button>
       <button class="nav-item role-patient" data-page="checkin" onclick="navigateTo('checkin')"><span class="nav-icon-chip chip-checkin"><i class="ti ti-heart-rate-monitor"></i></span>Check-in</button>
-      <button class="nav-item role-patient" data-page="statistiche" onclick="navigateTo('statistiche')"><span class="nav-icon-chip chip-statistiche"><i class="ti ti-chart-bar"></i></span>Statistiche</button>
       <button class="nav-item role-parent" data-page="parent" onclick="navigateTo('parent')" style="display:none"><span class="nav-icon-chip chip-dashboard"><i class="ti ti-users"></i></span>I miei figli/e</button>
     </nav>
     <div class="sidebar-footer">
@@ -430,12 +429,37 @@
 
       <!-- DASHBOARD (teen o adulto, stessa struttura) -->
       <div id="page-dashboard" class="page">
-        <span class="page-badge" id="dash-badge">Dashboard</span>
+        <span class="page-badge" id="dash-badge">Home</span>
         <h1 id="dash-greeting">Ciao.</h1>
         <p class="page-desc">La dashboard raccoglie check-in, routine e attività di oggi.</p>
         <div class="btn-row">
           <button class="btn btn-primary" id="dash-checkin-btn" onclick="navigateTo('checkin')"><i class="ti ti-plus"></i>Nuovo check-in</button>
           <button class="btn" onclick="navigateTo('messaggi')"><i class="ti ti-message"></i>Il tuo tutor</button>
+        </div>
+
+        <div class="card role-patient" id="dash-mood-card">
+          <div class="card-title">Come ti senti oggi?</div>
+          <div id="dash-mood-options" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+            <button type="button" class="mood-btn" data-mood="benissimo" onclick="saveQuickMood('benissimo')"><span class="mood-face">😄</span><span>Benissimo</span></button>
+            <button type="button" class="mood-btn" data-mood="bene" onclick="saveQuickMood('bene')"><span class="mood-face">🙂</span><span>Bene</span></button>
+            <button type="button" class="mood-btn" data-mood="cosi_cosi" onclick="saveQuickMood('cosi_cosi')"><span class="mood-face">😐</span><span>Così così</span></button>
+            <button type="button" class="mood-btn" data-mood="triste" onclick="saveQuickMood('triste')"><span class="mood-face">😢</span><span>Triste</span></button>
+            <button type="button" class="mood-btn" data-mood="arrabbiato" onclick="saveQuickMood('arrabbiato')"><span class="mood-face">😠</span><span>Arrabbiato</span></button>
+          </div>
+        </div>
+
+        <div class="card role-patient" id="dash-state-card">
+          <div class="card-title">Come stai oggi?</div><div class="card-desc">Muovi i cursori: la batteria si carica o si scarica e le attività consigliate si adattano.</div>
+          <div class="progress-label"><span>Focus</span><span class="state-right"><span class="battery" id="dash-focus-batt"><span class="battery-fill" id="dash-focus-battfill"></span></span><span id="dash-focus-val">50%</span></span></div>
+          <div class="progress-bar-wrap"><div class="progress-bar"><div class="progress-fill" id="dash-focus-fill" style="width:50%"></div></div><input type="range" class="progress-range" min="0" max="100" value="50" id="dash-focus-range" oninput="onStateSlide()"></div>
+          <div class="progress-label"><span>Energia</span><span class="state-right"><span class="battery" id="dash-energia-batt"><span class="battery-fill" id="dash-energia-battfill"></span></span><span id="dash-energia-val">50%</span></span></div>
+          <div class="progress-bar-wrap"><div class="progress-bar"><div class="progress-fill" id="dash-energia-fill" style="width:50%"></div></div><input type="range" class="progress-range" min="0" max="100" value="50" id="dash-energia-range" oninput="onStateSlide()"></div>
+          <div class="progress-label"><span>Stress</span><span class="state-right"><span class="battery" id="dash-stress-batt"><span class="battery-fill" id="dash-stress-battfill"></span></span><span id="dash-stress-val">50%</span></span></div>
+          <div class="progress-bar-wrap"><div class="progress-bar"><div class="progress-fill" id="dash-stress-fill" style="width:50%"></div></div><input type="range" class="progress-range" min="0" max="100" value="50" id="dash-stress-range" oninput="onStateSlide()"></div>
+          <div style="display:none">
+            <span id="dash-sonno-val">50%</span><span id="dash-sonno-fill"></span>
+            <input type="range" min="0" max="100" value="50" id="dash-sonno-range" oninput="onStateSlide()">
+          </div>
         </div>
 
         <div class="card role-patient" id="dash-stars-card">
@@ -447,6 +471,51 @@
           <div id="dash-stars-week" style="display:flex;gap:10px;margin-top:12px"></div>
         </div>
 
+        <div id="stats-block" class="role-patient" style="margin-bottom:18px">
+          <h2 style="font-size:18px;margin:0 0 4px">Le tue statistiche</h2>
+          <p class="page-desc" style="margin-bottom:10px">L'andamento delle tue attività, calcolato sui dati reali che hai inserito. Le percentuali contano solo i giorni in cui avevi qualcosa in agenda.</p>
+        <div class="subtab-bar" id="stats-subtab-bar">
+          <button class="subtab-btn active" onclick="switchSubtab('stats','day',this)">Oggi</button>
+          <button class="subtab-btn" onclick="switchSubtab('stats','week',this)">Settimana</button>
+          <button class="subtab-btn" onclick="switchSubtab('stats','month',this)">Mese</button>
+        </div>
+
+        <div id="stats-tab-day" class="subtab-panel active">
+          <div class="card">
+            <div class="card-title">Completamento di oggi</div><div class="card-desc"></div>
+            <div class="stats-highlight">
+              <div class="stats-highlight-num" id="stats-day-pct">—</div>
+              <div class="stats-highlight-label">Percentuale di attività pianificate oggi già completate</div>
+            </div>
+          </div>
+          <div class="card"><div class="card-title">Per categoria, oggi</div><div class="card-desc"></div><div id="stats-day-breakdown"></div></div>
+        </div>
+
+        <div id="stats-tab-week" class="subtab-panel">
+          <div class="card">
+            <div class="card-title">Andamento della settimana</div><div class="card-desc">Ultimi 7 giorni, oggi incluso.</div>
+            <div class="stats-highlight">
+              <div class="stats-highlight-num" id="stats-week-avg">—</div>
+              <div class="stats-highlight-label">Completamento medio, ultimi 7 giorni</div>
+            </div>
+            <div class="week-chart" id="stats-week-chart"></div>
+          </div>
+          <div class="card"><div class="card-title">Per categoria, questa settimana</div><div class="card-desc"></div><div id="stats-week-breakdown"></div></div>
+        </div>
+
+        <div id="stats-tab-month" class="subtab-panel">
+          <div class="card">
+            <div class="card-title">Andamento dell'ultimo mese</div><div class="card-desc">Media di completamento per ciascuna delle ultime 5 settimane.</div>
+            <div class="stats-highlight">
+              <div class="stats-highlight-num" id="stats-month-avg">—</div>
+              <div class="stats-highlight-label">Completamento medio, ultimo mese</div>
+            </div>
+            <div class="week-chart" id="stats-month-chart"></div>
+          </div>
+          <div class="card"><div class="card-title">Per categoria, ultimi 30 giorni</div><div class="card-desc"></div><div id="stats-month-breakdown"></div></div>
+        </div>
+        </div>
+
         <div class="subtab-bar" id="dash-subtab-bar">
           <button class="subtab-btn active" onclick="switchSubtab('dash','overview',this)">Panoramica</button>
           <button class="subtab-btn" onclick="switchSubtab('dash','agenda',this)">Agenda</button>
@@ -455,17 +524,6 @@
         <div id="dash-tab-overview" class="subtab-panel active">
           <div class="grid-4" id="dash-goal-cards" style="margin-bottom:18px"></div>
           <div class="grid-2" style="margin-bottom:18px">
-            <div class="card">
-              <div class="card-title">Stato di oggi</div><div class="card-desc">Muovi i cursori: le attività consigliate si adattano a come ti senti.</div>
-              <div class="progress-label"><span>Energia</span><span id="dash-energia-val">50%</span></div>
-              <div class="progress-bar-wrap"><div class="progress-bar"><div class="progress-fill" id="dash-energia-fill" style="width:50%"></div></div><input type="range" class="progress-range" min="0" max="100" value="50" id="dash-energia-range" oninput="onStateSlide()"></div>
-              <div class="progress-label"><span>Focus</span><span id="dash-focus-val">50%</span></div>
-              <div class="progress-bar-wrap"><div class="progress-bar"><div class="progress-fill" id="dash-focus-fill" style="width:50%"></div></div><input type="range" class="progress-range" min="0" max="100" value="50" id="dash-focus-range" oninput="onStateSlide()"></div>
-              <div class="progress-label"><span>Stress</span><span id="dash-stress-val">50%</span></div>
-              <div class="progress-bar-wrap"><div class="progress-bar"><div class="progress-fill" id="dash-stress-fill" style="width:50%"></div></div><input type="range" class="progress-range" min="0" max="100" value="50" id="dash-stress-range" oninput="onStateSlide()"></div>
-              <div class="progress-label"><span>Sonno</span><span id="dash-sonno-val">50%</span></div>
-              <div class="progress-bar-wrap" style="margin-bottom:0"><div class="progress-bar"><div class="progress-fill" id="dash-sonno-fill" style="width:50%"></div></div><input type="range" class="progress-range" min="0" max="100" value="50" id="dash-sonno-range" oninput="onStateSlide()"></div>
-            </div>
             <div class="card">
               <div class="card-title">Prossimi impegni</div><div class="card-desc">Le prossime cose da fare oggi.</div>
               <div id="dash-agenda-preview"></div>
@@ -590,53 +648,6 @@
           </div>
         </div>
         <div id="attivita-groups"></div>
-      </div>
-
-      <!-- STATISTICHE -->
-      <div id="page-statistiche" class="page">
-        <span class="page-badge" id="statistiche-badge">Statistiche</span><h1>Le tue statistiche</h1>
-        <p class="page-desc">L'andamento delle tue attività, calcolato sui dati reali che hai inserito. Le percentuali contano solo i giorni in cui avevi qualcosa in agenda.</p>
-
-        <div class="subtab-bar" id="stats-subtab-bar">
-          <button class="subtab-btn active" onclick="switchSubtab('stats','day',this)">Oggi</button>
-          <button class="subtab-btn" onclick="switchSubtab('stats','week',this)">Settimana</button>
-          <button class="subtab-btn" onclick="switchSubtab('stats','month',this)">Mese</button>
-        </div>
-
-        <div id="stats-tab-day" class="subtab-panel active">
-          <div class="card">
-            <div class="card-title">Completamento di oggi</div><div class="card-desc"></div>
-            <div class="stats-highlight">
-              <div class="stats-highlight-num" id="stats-day-pct">—</div>
-              <div class="stats-highlight-label">Percentuale di attività pianificate oggi già completate</div>
-            </div>
-          </div>
-          <div class="card"><div class="card-title">Per categoria, oggi</div><div class="card-desc"></div><div id="stats-day-breakdown"></div></div>
-        </div>
-
-        <div id="stats-tab-week" class="subtab-panel">
-          <div class="card">
-            <div class="card-title">Andamento della settimana</div><div class="card-desc">Ultimi 7 giorni, oggi incluso.</div>
-            <div class="stats-highlight">
-              <div class="stats-highlight-num" id="stats-week-avg">—</div>
-              <div class="stats-highlight-label">Completamento medio, ultimi 7 giorni</div>
-            </div>
-            <div class="week-chart" id="stats-week-chart"></div>
-          </div>
-          <div class="card"><div class="card-title">Per categoria, questa settimana</div><div class="card-desc"></div><div id="stats-week-breakdown"></div></div>
-        </div>
-
-        <div id="stats-tab-month" class="subtab-panel">
-          <div class="card">
-            <div class="card-title">Andamento dell'ultimo mese</div><div class="card-desc">Media di completamento per ciascuna delle ultime 5 settimane.</div>
-            <div class="stats-highlight">
-              <div class="stats-highlight-num" id="stats-month-avg">—</div>
-              <div class="stats-highlight-label">Completamento medio, ultimo mese</div>
-            </div>
-            <div class="week-chart" id="stats-month-chart"></div>
-          </div>
-          <div class="card"><div class="card-title">Per categoria, ultimi 30 giorni</div><div class="card-desc"></div><div id="stats-month-breakdown"></div></div>
-        </div>
       </div>
 
       <!-- REVISIONE (paziente) -->

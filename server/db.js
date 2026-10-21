@@ -196,6 +196,13 @@ for (const col of ['privacy_accepted_at', 'consent_accepted_at']) {
   }
 }
 
+// MIGRAZIONE: "Come ti senti oggi?" (faccine nella Home) salva l'umore scelto
+// come etichetta (benissimo, bene, cosi_cosi, triste, arrabbiato).
+const checkinColumns = db.prepare("PRAGMA table_info(checkins)").all().map(c => c.name);
+if (!checkinColumns.includes('mood_label')) {
+  db.exec('ALTER TABLE checkins ADD COLUMN mood_label TEXT');
+}
+
 // MIGRAZIONE: obiettivi scelti dal paziente in fase di onboarding (elenco
 // selezionato tra più opzioni, salvato come testo separato da virgole).
 const userColumns3 = db.prepare("PRAGMA table_info(users)").all().map(c => c.name);

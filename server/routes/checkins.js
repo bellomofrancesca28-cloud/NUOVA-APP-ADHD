@@ -33,4 +33,35 @@ router.post('/', requireAuth, requireRole('patient'), (req, res) => {
   res.json({ checkin: row });
 });
 
+// "Come ti senti oggi?": scelta rapida con le faccine dalla Home. Una sola
+// voce al giorno: se l'utente cambia idea, aggiorniamo quella di oggi.
+const QUICK_MOODS = { benissimo: 10, bene: 8, cosi_cosi: 5, triste: 3, arrabbiato: 2 };
+
+router.get('/quick/today', requireAuth, requireRole('patient'), (req, res) => {
+  const row = db.prepare(`
+    SELECT mood_label FROM checkins
+    WHERE user_id = ? AND mood_label IS NOT NULL AND date(created_at) = date('now')
+    ORDER BY created_at DESC, id DESC LIMIT 1
+  `).get(req.user.id);
+  res.json({ label: row ? row.mood_label : null });
+});
+
+router.post('/quick', requireAuth, requireRole('patient'), (req, res) => {
+  const label = req.body && req.body.label;
+  if (!Object.prototype.hasOwnProperty.call(QUICK_MOODS, label)) {
+    return res.status(400).json({ error: 'Scelta non valida.' });
+  }
+  const existing = db.prepare(`
+    SELECT id FROM checkins
+    WHERE user_id = ? AND mood_label IS NOT NULL AND date(created_at) = date('now')
+    ORDER BY created_at DESC, id DESC LIMIT 1
+  `).get(req.user.id);
+  if (existing) {
+    db.prepare('UPDATE checkins SET mood = ?, mood_label = ? WHERE id = ?').run(QUICK_MOODS[label], label, existing.id);
+  } else {
+    db.prepare('INSERT INTO checkins (user_id, mood, mood_label) VALUES (?, ?, ?)').run(req.user.id, QUICK_MOODS[label], label);
+  }
+  res.json({ label });
+});
+
 module.exports = router;

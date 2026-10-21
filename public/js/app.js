@@ -454,7 +454,6 @@ function applyRoleVisibility() {
     document.getElementById('calendario-badge').className = 'page-badge' + (teen ? '' : ' page-badge-adult');
     document.getElementById('attivita-badge').className = 'page-badge' + (teen ? '' : ' page-badge-adult');
     document.getElementById('checkin-badge').className = 'page-badge' + (teen ? '' : ' page-badge-adult');
-    document.getElementById('statistiche-badge').className = 'page-badge' + (teen ? '' : ' page-badge-adult');
     document.getElementById('revisione-badge').className = 'page-badge' + (teen ? '' : ' page-badge-adult');
     document.getElementById('dash-checkin-btn').className = 'btn ' + (teen ? 'btn-primary' : 'btn-adult');
     document.getElementById('attivita-add-btn').className = 'btn ' + (teen ? 'btn-primary' : 'btn-adult');
@@ -478,7 +477,6 @@ const PAGE_LOADERS = {
   calendario: loadCalendarioPage,
   attivita: loadAttivitaPage,
   checkin: loadCheckinPage,
-  statistiche: loadStatistichePage,
   revisione: loadRevisionePage,
   messaggi: loadMessagesPage,
   therapist: loadTherapistPage,
@@ -549,12 +547,16 @@ async function submitAttivitaAdd() {
 // Alcune pagine con sotto-schede (es. "dash" -> #page-dashboard, "stats" ->
 // #page-statistiche) hanno un nome scheda diverso dal nome della pagina:
 // questa mappa tiene il collegamento in un unico posto.
-const SCOPE_PAGE_ID = { dash: 'dashboard', stats: 'statistiche' };
+const SCOPE_PAGE_ID = { dash: 'dashboard' };
 function switchSubtab(scope, tab, btn) {
   const pageId = SCOPE_PAGE_ID[scope] || scope;
-  document.querySelectorAll('#page-' + pageId + ' .subtab-panel').forEach(p => p.classList.remove('active'));
+  // Le statistiche vivono dentro la Home (#stats-block): le loro schede non
+  // devono interferire con quelle della Home e viceversa.
+  const root = scope === 'stats' ? '#stats-block' : '#page-' + pageId;
+  const inScope = el => scope === 'stats' || !el.closest('#stats-block');
+  document.querySelectorAll(root + ' .subtab-panel').forEach(p => { if (inScope(p)) p.classList.remove('active'); });
   document.getElementById(scope + '-tab-' + tab).classList.add('active');
-  document.querySelectorAll('#page-' + pageId + ' .subtab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll(root + ' .subtab-btn').forEach(b => { if (inScope(b)) b.classList.remove('active'); });
   if (btn) btn.classList.add('active');
 }
 
@@ -841,6 +843,7 @@ async function loadDashboardPage() {
     document.getElementById('dash-' + domId + '-range').value = v;
     document.getElementById('dash-' + domId + '-val').textContent = v + '%';
     document.getElementById('dash-' + domId + '-fill').style.width = v + '%';
+    setBattery(domId, v);
   });
 
   const catSelect = document.getElementById('dash-new-cat');
@@ -852,6 +855,40 @@ async function loadDashboardPage() {
   renderSuggested();
   renderTodaySummary();
   loadStars();
+  loadStatistichePage();
+  loadQuickMood();
+}
+
+// "Come ti senti oggi?": scelta rapida con le faccine (una al giorno).
+const QUICK_MOOD_REPLIES = {
+  benissimo: 'Che bello! Goditi la giornata 🎉',
+  bene: 'Ottimo, continua così 🙂',
+  cosi_cosi: 'Va bene anche così. Un passo alla volta 💛',
+  triste: 'Grazie per averlo detto. Se ti va, scrivilo al tuo tutor 💙',
+  arrabbiato: 'Capita. Respira: se vuoi, puoi parlarne col tuo tutor 💙',
+};
+const QUICK_MOOD_LABELS = { benissimo: 'Benissimo', bene: 'Bene', cosi_cosi: 'Così così', triste: 'Triste', arrabbiato: 'Arrabbiato' };
+const QUICK_MOOD_FACES = { benissimo: '😄', bene: '🙂', cosi_cosi: '😐', triste: '😢', arrabbiato: '😠' };
+
+function markQuickMood(label) {
+  document.querySelectorAll('#dash-mood-options .mood-btn').forEach(b => {
+    b.classList.toggle('selected', b.dataset.mood === label);
+  });
+}
+async function loadQuickMood() {
+  try {
+    const { label } = await api.get('/api/checkins/quick/today');
+    markQuickMood(label);
+  } catch (e) { console.error('Errore umore di oggi:', e); }
+}
+async function saveQuickMood(label) {
+  try {
+    await api.post('/api/checkins/quick', { label });
+    markQuickMood(label);
+    showToast(QUICK_MOOD_REPLIES[label]);
+  } catch (e) {
+    showToast(e.message || 'Non sono riuscito a salvare.');
+  }
 }
 
 // Stelle giornaliere: totale + ultimi 7 giorni (calcolate dal server).
@@ -879,6 +916,15 @@ async function loadStars() {
 const sendStateToServer = debounce(async function(vals) {
   try { await api.put('/api/agenda/state/today', { date: state.agendaDate, ...vals }); } catch (e) {}
 }, 350);
+// Batteria accanto a Focus / Energia / Stress: si riempie col valore.
+// Per lo stress il colore è invertito (più è alto, più è rosso).
+function setBattery(domId, pct) {
+  const fill = document.getElementById('dash-' + domId + '-battfill');
+  if (!fill) return;
+  fill.style.width = pct + '%';
+  const good = domId === 'stress' ? 100 - pct : pct;
+  fill.style.background = good >= 66 ? 'hsl(142,60%,45%)' : (good >= 33 ? 'hsl(40,90%,50%)' : 'hsl(2,75%,55%)');
+}
 function onStateSlide() {
   const vals = {
     energy: Number(document.getElementById('dash-energia-range').value),
@@ -890,6 +936,7 @@ function onStateSlide() {
     const key = ['energy','focus','stress','sleep'][i];
     document.getElementById('dash-'+domId+'-val').textContent = vals[key] + '%';
     document.getElementById('dash-'+domId+'-fill').style.width = vals[key] + '%';
+    setBattery(domId, vals[key]);
   });
   state.todayState = vals;
   renderSuggested();
@@ -1126,8 +1173,6 @@ function renderBreakdownList(containerId, breakdown, color) {
 async function loadStatistichePage() {
   const teen = state.user.age_group === 'teen';
   const color = teen ? 'var(--primary)' : 'hsl(39,81%,45%)';
-  document.getElementById('statistiche-badge').className = 'page-badge' + (teen ? '' : ' page-badge-adult');
-
   const data = await api.get('/api/stats/detailed');
   const weekLabels = ['6gg fa','5gg fa','4gg fa','3gg fa','2gg fa','Ieri','Oggi'];
 
@@ -1444,11 +1489,15 @@ function renderCheckinDiary(container, checkins) {
   if (!checkins.length) { container.innerHTML = '<p class="empty-hint">Ancora nessuna voce nel diario.</p>'; return; }
   checkins.forEach(c => {
     const row = document.createElement('div'); row.className = 'diary-row';
-    const metrics = Object.keys(DIARY_FIELD_LABELS)
-      .filter(k => c[k] !== null && c[k] !== undefined)
-      .map(k => `<span>${DIARY_FIELD_LABELS[k]} <b>${c[k]}/10</b></span>`).join('');
+    const quick = c.mood_label && QUICK_MOOD_LABELS[c.mood_label];
+    const metrics = quick
+      ? `<span>Come mi sento: <b>${QUICK_MOOD_LABELS[c.mood_label]}</b></span>`
+      : Object.keys(DIARY_FIELD_LABELS)
+          .filter(k => c[k] !== null && c[k] !== undefined)
+          .map(k => `<span>${DIARY_FIELD_LABELS[k]} <b>${c[k]}/10</b></span>`).join('');
+    const face = quick ? QUICK_MOOD_FACES[c.mood_label] : moodEmoji(c.mood);
     row.innerHTML = `
-      <div class="diary-row-head"><span class="diary-date">${new Date(c.created_at).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}</span><span class="diary-mood-emoji">${moodEmoji(c.mood)}</span></div>
+      <div class="diary-row-head"><span class="diary-date">${new Date(c.created_at).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}</span><span class="diary-mood-emoji">${face}</span></div>
       <div class="diary-metrics">${metrics}</div>
       ${c.note ? `<p class="diary-note">${escapeHtml(c.note)}</p>` : ''}`;
     container.appendChild(row);

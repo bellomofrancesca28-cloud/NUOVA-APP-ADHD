@@ -423,3 +423,15 @@ textarea:focus,select:focus,input:focus{border-color:var(--primary);box-shadow:0
   .call-video-local{width:90px;height:65px;bottom:10px;right:10px}
   .call-top{padding:12px}
 }
+
+/* "Come ti senti oggi?" — faccine nella Home */
+.mood-btn{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:86px;padding:10px 12px;border:2px solid transparent;border-radius:14px;background:rgba(255,255,255,.7);font:inherit;font-size:13px;cursor:pointer;transition:transform .12s,border-color .12s,background .12s}
+.mood-btn:hover{transform:translateY(-2px)}
+.mood-btn .mood-face{font-size:30px;line-height:1}
+.mood-btn.selected{border-color:var(--primary,#6c5ce7);background:#fff;font-weight:600}
+
+/* Batteria accanto a Focus / Energia / Stress */
+.state-right{display:inline-flex;align-items:center;gap:8px}
+.battery{position:relative;display:inline-block;width:34px;height:16px;border:2px solid currentColor;border-radius:4px;padding:1px;box-sizing:border-box;opacity:.85}
+.battery::after{content:"";position:absolute;right:-5px;top:3px;width:3px;height:6px;background:currentColor;border-radius:0 2px 2px 0}
+.battery-fill{display:block;height:100%;width:50%;border-radius:2px;transition:width .2s,background .2s}
