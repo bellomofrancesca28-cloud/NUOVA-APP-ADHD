@@ -103,7 +103,8 @@ router.delete('/pair', requireAuth, requireRole('patient'), (req, res) => {
 // in carico: quelli in attesa vivono nella sezione "Richieste in attesa".
 router.get('/patients', requireAuth, requireRole('therapist'), (req, res) => {
   const patients = db.prepare(`
-    SELECT u.id, u.name, u.nickname, u.avatar, u.age_group, u.email, u.birth_date, u.phone, pt.created_at as linked_since
+    SELECT u.id, u.name, u.nickname, u.avatar, u.age_group, u.email, u.birth_date, u.phone, pt.created_at as linked_since,
+      (SELECT COUNT(*) FROM review_requests rr WHERE rr.patient_id = u.id AND rr.therapist_id = pt.therapist_id) as review_requested
     FROM patient_therapist pt JOIN users u ON u.id = pt.patient_id
     WHERE pt.therapist_id = ? AND pt.status = 'active'
     ORDER BY u.name ASC

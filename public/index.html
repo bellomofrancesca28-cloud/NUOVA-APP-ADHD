@@ -23,6 +23,47 @@
 </head>
 <body>
 
+<!-- ===================== INTRODUZIONE (prima visita, 4 schermate) ===================== -->
+<div id="view-intro" class="auth-wrap" style="display:none">
+  <div class="auth-card intro-card-wrap">
+    <div class="intro-step" id="intro-step-1">
+      <div class="intro-head"><div class="intro-icon" style="background:hsl(230,80%,94%);color:hsl(232,50%,35%)"><i class="ti ti-brain"></i></div>
+        <div><h2>1. Benvenuto in ADHD Coach</h2><span class="intro-tag">Introduzione</span></div></div>
+      <h3>Un passo alla volta, verso i tuoi obiettivi.</h3>
+      <p>Organizzare le giornate, gestire il tempo e portare a termine ciò che inizi non è sempre facile. Ma puoi imparare strategie nuove, trovare il tuo metodo e costruire abitudini più adatte a te.</p>
+      <p>ADHD Coach ti accompagna in questo percorso, con il supporto di un tutor che lavora insieme a te sui tuoi obiettivi.</p>
+    </div>
+    <div class="intro-step" id="intro-step-2" style="display:none">
+      <div class="intro-head"><div class="intro-icon" style="background:hsl(150,45%,92%);color:hsl(155,60%,28%)"><i class="ti ti-target"></i></div>
+        <div><h2>2. I tuoi obiettivi, il tuo percorso</h2><span class="intro-tag">Personalizzazione</span></div></div>
+      <h3>Da dove vuoi iniziare?</h3>
+      <p>Ogni percorso è diverso. Con il tuo tutor potrai lavorare su obiettivi concreti, utilizzando strategie specifiche per organizzarti meglio e affrontare le difficoltà quotidiane.</p>
+      <ul class="intro-list">
+        <li><i class="ti ti-calendar-check"></i><div><b>Organizzare le giornate</b><span>Pianificare attività, impegni e priorità.</span></div></li>
+        <li><i class="ti ti-circle-check"></i><div><b>Portare a termine ciò che inizi</b><span>Suddividere gli obiettivi in passi concreti e gestibili.</span></div></li>
+        <li><i class="ti ti-heart-rate-monitor"></i><div><b>Gestire stress, sonno ed energia</b><span>Sviluppare abitudini più funzionali al tuo benessere quotidiano.</span></div></li>
+      </ul>
+    </div>
+    <div class="intro-step" id="intro-step-3" style="display:none">
+      <div class="intro-head"><div class="intro-icon" style="background:hsl(28,90%,92%);color:hsl(24,70%,40%)"><i class="ti ti-users"></i></div>
+        <div><h2>3. Un tutor al tuo fianco</h2><span class="intro-tag">Accompagnamento</span></div></div>
+      <h3>Non devi fare tutto da solo.</h3>
+      <p>Insieme al tuo tutor potrai individuare le strategie più adatte a te, definire obiettivi realistici e osservare i tuoi progressi nel tempo.</p>
+      <p>Ogni piccolo passo conta. Le difficoltà non sono fallimenti, ma occasioni per capire cosa funziona meglio per te.</p>
+    </div>
+    <div class="intro-step" id="intro-step-4" style="display:none">
+      <div class="intro-head"><div class="intro-icon" style="background:hsl(230,80%,94%);color:hsl(232,50%,35%)"><i class="ti ti-heart-handshake"></i></div>
+        <div><h2>4. Un percorso condiviso</h2><span class="intro-tag">Area genitori</span></div></div>
+      <h3>Crescere, con il giusto supporto.</h3>
+      <p>Per i genitori di utenti minorenni è disponibile un'area dedicata, accessibile tramite un account personale, per seguire l'andamento del percorso e monitorare i progressi del proprio figlio.</p>
+      <p>Uno strumento per accompagnarlo con maggiore consapevolezza, valorizzando i suoi passi avanti e sostenendolo nelle difficoltà.</p>
+    </div>
+    <div class="intro-dots" id="intro-dots"><span class="active"></span><span></span><span></span><span></span></div>
+    <button class="intro-btn" id="intro-next-btn" onclick="nextIntro()">Scopri come funziona →</button>
+    <button class="intro-back" id="intro-back-btn" style="display:none" onclick="prevIntro()">← Indietro</button>
+  </div>
+</div>
+
 <!-- ===================== AUTENTICAZIONE ===================== -->
 <div id="view-auth" class="auth-wrap">
   <div class="auth-card">
@@ -735,8 +776,61 @@
           <button class="btn" style="background:hsl(262,52%,55%);color:#fff;border-color:hsl(262,52%,55%)" onclick="navigateTo('therapist-review')"><i class="ti ti-video"></i>Vai alla Revisione</button>
         </div>
         <h1 id="therapist-chat-title">Note di —</h1>
+        <div class="card" id="therapist-review-request-banner-chat" style="display:none;border-color:hsl(262,52%,55%);background:hsl(262,52%,97%)">
+          <i class="ti ti-calendar-plus" style="color:hsl(262,52%,55%);margin-right:8px"></i><strong>Questo utente ha richiesto una revisione.</strong>
+          <span id="therapist-review-request-when-chat" style="color:var(--muted-fg)"></span>
+          <div style="margin-top:10px"><button class="btn" style="background:hsl(262,52%,55%);color:#fff" onclick="navigateTo('therapist-review')"><i class="ti ti-video"></i>Proponi data e ora</button></div>
+        </div>
         <div id="therapist-patient-info"></div>
         <p class="page-desc">Note scritte dall'utente per te: non è una chat in tempo reale, l'utente sa che le leggerai con calma, in genere prima del prossimo appuntamento. Non è un canale per le emergenze.</p>
+        <div class="card" id="therapist-overview-card">
+          <div class="card-title">Come sta l'utente oggi</div>
+          <div class="card-desc">Stato d'animo scelto oggi e livelli indicati nella sua Home.</div>
+          <div id="t-mood-today" style="font-size:16px;margin:6px 0 12px">—</div>
+          <div id="t-state-bars"></div>
+        </div>
+
+        <div class="card" id="therapist-stars-card">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+            <div><div class="card-title" style="margin:0">Stelle</div><div class="card-desc" style="margin:0">Una stella per ogni giorno con tutte le attività completate; una settimana intera (lunedì-domenica) = super stella.</div></div>
+            <div style="font-size:26px;font-weight:700;text-align:right"><span id="t-stars-total">0</span> ⭐ &nbsp;<span id="t-superstars-total">0</span> 🌟</div>
+          </div>
+          <div id="t-stars-week" style="display:flex;gap:10px;margin-top:12px"></div>
+        </div>
+
+        <div id="tstats-block" style="margin-bottom:18px">
+          <h2 style="font-size:18px;margin:0 0 4px">Statistiche dell'utente</h2>
+          <p class="page-desc" style="margin-bottom:10px">Calcolate sui dati reali inseriti dall'utente. Le percentuali contano solo i giorni in cui c'era qualcosa in agenda.</p>
+          <div class="subtab-bar" id="tstats-subtab-bar">
+            <button class="subtab-btn active" onclick="switchSubtab('tstats','day',this)">Oggi</button>
+            <button class="subtab-btn" onclick="switchSubtab('tstats','week',this)">Settimana</button>
+            <button class="subtab-btn" onclick="switchSubtab('tstats','month',this)">Mese</button>
+          </div>
+          <div id="tstats-tab-day" class="subtab-panel active">
+            <div class="card">
+              <div class="card-title">Completamento di oggi</div><div class="card-desc"></div>
+              <div class="stats-highlight"><div class="stats-highlight-num" id="tstats-day-pct">—</div><div class="stats-highlight-label">Percentuale di attività pianificate oggi già completate</div></div>
+            </div>
+            <div class="card"><div class="card-title">Per categoria, oggi</div><div class="card-desc"></div><div id="tstats-day-breakdown"></div></div>
+          </div>
+          <div id="tstats-tab-week" class="subtab-panel">
+            <div class="card">
+              <div class="card-title">Andamento della settimana</div><div class="card-desc">Ultimi 7 giorni, oggi incluso.</div>
+              <div class="stats-highlight"><div class="stats-highlight-num" id="tstats-week-avg">—</div><div class="stats-highlight-label">Completamento medio, ultimi 7 giorni</div></div>
+              <div class="week-chart" id="tstats-week-chart"></div>
+            </div>
+            <div class="card"><div class="card-title">Per categoria, questa settimana</div><div class="card-desc"></div><div id="tstats-week-breakdown"></div></div>
+          </div>
+          <div id="tstats-tab-month" class="subtab-panel">
+            <div class="card">
+              <div class="card-title">Andamento dell'ultimo mese</div><div class="card-desc">Media di completamento per ciascuna delle ultime 5 settimane.</div>
+              <div class="stats-highlight"><div class="stats-highlight-num" id="tstats-month-avg">—</div><div class="stats-highlight-label">Completamento medio, ultimo mese</div></div>
+              <div class="week-chart" id="tstats-month-chart"></div>
+            </div>
+            <div class="card"><div class="card-title">Per categoria, ultimi 30 giorni</div><div class="card-desc"></div><div id="tstats-month-breakdown"></div></div>
+          </div>
+        </div>
+
         <div class="grid-2">
           <div class="card"><div class="card-title">Note dell'utente</div><div class="card-desc"></div>
             <div id="therapist-messages-list"></div>
@@ -770,6 +864,10 @@
           <button class="btn" onclick="navigateTo('therapist-chat')"><i class="ti ti-arrow-left"></i>Torna alle note</button>
         </div>
         <h1 id="therapist-review-title">Revisione con —</h1>
+        <div class="card" id="therapist-review-request-banner" style="display:none;border-color:hsl(262,52%,55%);background:hsl(262,52%,97%)">
+          <i class="ti ti-calendar-plus" style="color:hsl(262,52%,55%);margin-right:8px"></i><strong>Questo utente ha richiesto una revisione.</strong>
+          <span id="therapist-review-request-when" style="color:var(--muted-fg)"></span> Proponi qui sotto una data e un orario.
+        </div>
         <p class="page-desc">Proponi un orario da 15 minuti; l'utente potrà confermarlo o rifiutarlo. La videochiamata dura esattamente 15 minuti e si chiude da sola allo scadere del tempo.</p>
 
         <div class="card">
@@ -818,6 +916,14 @@
 
         <h2 style="font-size:18px;margin:28px 0 4px">Revisione con il tuo tutor</h2>
         <p class="page-desc" style="margin-bottom:12px">Un breve incontro video da 15 minuti per fare il punto insieme. Il tutor propone l'orario, tu confermi o rifiuti.</p>
+        <div class="card" id="revisione-request-card">
+          <div class="card-title">Richiedi una revisione</div>
+          <div class="card-desc" id="revisione-request-desc">Vuoi fare il punto con il tuo tutor? Invia una richiesta: lui ti proporrà una data e un orario, che potrai confermare o rifiutare.</div>
+          <button class="btn btn-primary" id="revisione-request-btn" onclick="requestReview()"><i class="ti ti-calendar-plus"></i>Richiedi una revisione</button>
+          <button class="btn" id="revisione-request-cancel" style="display:none" onclick="cancelReviewRequest()"><i class="ti ti-x"></i>Annulla richiesta</button>
+          <div class="form-error" id="revisione-request-error"></div>
+        </div>
+
         <div class="card" id="revisione-next-card">
           <div class="card-title">Prossima revisione confermata</div><div class="card-desc"></div>
           <div id="revisione-next"></div>

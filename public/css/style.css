@@ -435,3 +435,23 @@ textarea:focus,select:focus,input:focus{border-color:var(--primary);box-shadow:0
 .battery{position:relative;display:inline-block;width:34px;height:16px;border:2px solid currentColor;border-radius:4px;padding:1px;box-sizing:border-box;opacity:.85}
 .battery::after{content:"";position:absolute;right:-5px;top:3px;width:3px;height:6px;background:currentColor;border-radius:0 2px 2px 0}
 .battery-fill{display:block;height:100%;width:50%;border-radius:2px;transition:width .2s,background .2s}
+
+/* Introduzione (prima visita) */
+.intro-card-wrap{max-width:520px;padding:28px}
+.intro-head{display:flex;gap:14px;align-items:flex-start;margin-bottom:18px}
+.intro-icon{flex:none;width:56px;height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px}
+.intro-head h2{font-size:21px;line-height:1.25;margin:0}
+.intro-tag{font-size:13px;color:var(--muted-fg)}
+.intro-step h3{font-size:24px;line-height:1.25;margin:0 0 14px}
+.intro-step p{font-size:16px;line-height:1.6;margin:0 0 14px;color:var(--fg,#222)}
+.intro-list{list-style:none;padding:0;margin:0 0 6px}
+.intro-list li{display:flex;gap:12px;align-items:flex-start;margin-bottom:14px}
+.intro-list li>i{font-size:22px;color:hsl(155,60%,32%);margin-top:2px}
+.intro-list b{display:block;font-size:16px}
+.intro-list span{display:block;font-size:14px;color:var(--muted-fg)}
+.intro-dots{display:flex;justify-content:center;gap:8px;margin:18px 0 14px}
+.intro-dots span{width:8px;height:8px;border-radius:50%;background:hsl(220,15%,82%)}
+.intro-dots span.active{background:var(--primary);width:22px;border-radius:6px}
+.intro-btn{width:100%;padding:16px;border:none;border-radius:14px;background:hsl(0,0%,95%);font:inherit;font-size:17px;font-weight:600;cursor:pointer}
+.intro-btn:hover{background:hsl(0,0%,91%)}
+.intro-back{display:block;margin:12px auto 0;background:none;border:none;font:inherit;color:var(--muted-fg);cursor:pointer}

@@ -196,6 +196,18 @@ for (const col of ['privacy_accepted_at', 'consent_accepted_at']) {
   }
 }
 
+// L'utente può chiedere una revisione al proprio tutor: la richiesta resta
+// "aperta" (una sola per utente) finché il tutor non propone un orario o
+// l'utente non la annulla.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS review_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    patient_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    therapist_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
 // MIGRAZIONE: "Come ti senti oggi?" (faccine nella Home) salva l'umore scelto
 // come etichetta (benissimo, bene, cosi_cosi, triste, arrabbiato).
 const checkinColumns = db.prepare("PRAGMA table_info(checkins)").all().map(c => c.name);

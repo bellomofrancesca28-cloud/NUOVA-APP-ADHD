@@ -45,7 +45,42 @@ async function boot() {
   }
 }
 
+/* ========================= INTRODUZIONE (prima visita) ========================= */
+// Quattro schermate di benvenuto mostrate una sola volta, prima di accesso e
+// registrazione. Ricordiamo che sono già state viste nel browser.
+const INTRO_STEPS = 4;
+const INTRO_BUTTONS = ['Scopri come funziona →', 'Continua →', 'Continua →', 'Inizia il tuo percorso →'];
+let introStep = 1;
+function introAlreadySeen() {
+  try { return localStorage.getItem('adhd_intro_seen') === '1'; } catch (e) { return false; }
+}
+function showIntroStep(n) {
+  introStep = Math.max(1, Math.min(INTRO_STEPS, n));
+  for (let i = 1; i <= INTRO_STEPS; i++) {
+    document.getElementById('intro-step-' + i).style.display = i === introStep ? 'block' : 'none';
+  }
+  document.querySelectorAll('#intro-dots span').forEach((d, i) => d.classList.toggle('active', i === introStep - 1));
+  document.getElementById('intro-next-btn').textContent = INTRO_BUTTONS[introStep - 1];
+  document.getElementById('intro-back-btn').style.display = introStep > 1 ? 'block' : 'none';
+  window.scrollTo(0, 0);
+}
+function nextIntro() {
+  if (introStep < INTRO_STEPS) { showIntroStep(introStep + 1); return; }
+  try { localStorage.setItem('adhd_intro_seen', '1'); } catch (e) {}
+  document.getElementById('view-intro').style.display = 'none';
+  showAuth();
+  showAuthTab('register');
+}
+function prevIntro() { showIntroStep(introStep - 1); }
+
 function showAuth() {
+  if (!introAlreadySeen()) {
+    document.getElementById('view-auth').style.display = 'none';
+    document.getElementById('view-intro').style.display = 'flex';
+    showIntroStep(1);
+    return;
+  }
+  document.getElementById('view-intro').style.display = 'none';
   document.getElementById('view-auth').style.display = 'flex';
   document.getElementById('view-pairing').style.display = 'none';
   document.getElementById('view-pairing-waiting').style.display = 'none';
@@ -550,8 +585,9 @@ function switchSubtab(scope, tab, btn) {
   const pageId = SCOPE_PAGE_ID[scope] || scope;
   // Le statistiche vivono dentro la Home (#stats-block): le loro schede non
   // devono interferire con quelle della Home e viceversa.
-  const root = scope === 'stats' ? '#stats-block' : '#page-' + pageId;
-  const inScope = el => scope === 'stats' || !el.closest('#stats-block');
+  const own = scope === 'stats' || scope === 'tstats';
+  const root = own ? '#' + scope + '-block' : '#page-' + pageId;
+  const inScope = el => own || !el.closest('#stats-block');
   document.querySelectorAll(root + ' .subtab-panel').forEach(p => { if (inScope(p)) p.classList.remove('active'); });
   document.getElementById(scope + '-tab-' + tab).classList.add('active');
   document.querySelectorAll(root + ' .subtab-btn').forEach(b => { if (inScope(b)) b.classList.remove('active'); });
@@ -1752,6 +1788,7 @@ async function loadTherapistPage() {
         <div><span class="patient-name">${escapeHtml(p.nickname || p.name)}</span> <span class="status-badge" style="font-size:10px">${p.age_group === 'teen' ? 'Teen' : 'Adulto'}</span></div>
         <span class="patient-last-checkin">Collegato dal ${new Date(p.linked_since).toLocaleDateString('it-IT')}</span>
       </div>
+      ${p.review_requested ? '<div style="margin:6px 0"><span class="status-badge" style="background:hsl(262,52%,92%);color:hsl(262,52%,40%)">📅 Ha richiesto una revisione</span></div>' : ''}
       <div class="patient-card-body">
         <div class="patient-sparkline">${sparklineSvg(trendVals, t.trend === 'down' ? 'hsl(39,81%,45%)' : (t.trend === 'up' ? 'var(--primary)' : 'var(--muted-fg)'))}</div>
         <div class="patient-trend-label" style="color:${t.trend==='down'?'hsl(39,81%,45%)':(t.trend==='up'?'var(--primary)':'var(--muted-fg)')}">${t.text}</div>
@@ -1829,6 +1866,8 @@ async function openTherapistChat(patientId, displayName, ageGroup) {
   const pInfo = (state.therapistPatients || []).find(p => p.id === patientId);
   document.getElementById('therapist-patient-info').innerHTML = pInfo ? contactInfoHtml(pInfo) : '';
   document.getElementById('therapist-chat-title').textContent = 'Note di ' + displayName;
+  loadTherapistReviewRequestBanner(patientId);
+  loadTherapistOverview(patientId);
   const familyCard = document.getElementById('therapist-family-code-card');
   document.getElementById('therapist-family-code-error').textContent = '';
   if (ageGroup === 'teen') {
@@ -1946,7 +1985,45 @@ function reviewSlotRow(slot, { showJoin, showRespond, showCancel, onCancel } = {
 }
 
 // ----- Vista paziente -----
+// Richiesta di revisione dell'utente: pulsante oppure stato "inviata".
+async function loadReviewRequestState() {
+  const btn = document.getElementById('revisione-request-btn');
+  if (!btn) return;
+  const cancelBtn = document.getElementById('revisione-request-cancel');
+  const desc = document.getElementById('revisione-request-desc');
+  document.getElementById('revisione-request-error').textContent = '';
+  try {
+    const { request } = await api.get('/api/reviews/request');
+    if (request) {
+      btn.style.display = 'none';
+      cancelBtn.style.display = '';
+      desc.textContent = `Richiesta inviata il ${new Date(request.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('it-IT')}. Il tuo tutor la vedrà e ti proporrà una data e un orario.`;
+    } else {
+      btn.style.display = '';
+      cancelBtn.style.display = 'none';
+      desc.textContent = 'Vuoi fare il punto con il tuo tutor? Invia una richiesta: lui ti proporrà una data e un orario, che potrai confermare o rifiutare.';
+    }
+  } catch (e) {
+    desc.textContent = 'Per chiedere una revisione devi essere collegato a un tutor.';
+    btn.style.display = 'none'; cancelBtn.style.display = 'none';
+  }
+}
+async function requestReview() {
+  const err = document.getElementById('revisione-request-error');
+  err.textContent = '';
+  try {
+    await api.post('/api/reviews/request', {});
+    showToast('Richiesta inviata al tuo tutor 📅');
+  } catch (e) { err.textContent = e.message; }
+  await loadReviewRequestState();
+}
+async function cancelReviewRequest() {
+  try { await api.del('/api/reviews/request'); } catch (e) { document.getElementById('revisione-request-error').textContent = e.message; }
+  await loadReviewRequestState();
+}
+
 async function loadRevisionePage() {
+  loadReviewRequestState();
   const { slots } = await api.get('/api/reviews');
   const confirmedUpcoming = slots.filter(s => s.status === 'confirmed' && !isSlotPast(s)).sort((a, b) => slotDateTime(a) - slotDateTime(b))[0];
   const pending = slots.filter(s => s.status === 'proposed');
@@ -2000,6 +2077,7 @@ async function loadTherapistReviewPage() {
   const dateInput = document.getElementById('review-new-date');
   if (!dateInput.value) dateInput.value = todayIso();
 
+  loadTherapistReviewRequestBanner(state.currentTherapistChatPatientId);
   const { slots } = await api.get('/api/reviews?patientId=' + state.currentTherapistChatPatientId);
   const confirmedUpcoming = slots.filter(s => s.status === 'confirmed' && !isSlotPast(s)).sort((a, b) => slotDateTime(a) - slotDateTime(b))[0];
 
@@ -2023,6 +2101,74 @@ async function loadTherapistReviewPage() {
     const canCancel = s.status === 'proposed' || s.status === 'confirmed';
     listEl.appendChild(reviewSlotRow(s, canCancel ? { showCancel: true, onCancel: () => cancelReviewSlot(s.id) } : {}));
   });
+}
+
+// Avviso al tutor: l'utente ha richiesto una revisione e aspetta data e ora.
+async function loadTherapistReviewRequestBanner(patientId) {
+  const ids = ['therapist-review-request-banner-chat', 'therapist-review-request-banner'];
+  ids.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  try {
+    const { request } = await api.get('/api/reviews/request?patientId=' + patientId);
+    if (!request) return;
+    const when = ` (richiesta del ${new Date(request.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('it-IT')})`;
+    document.getElementById('therapist-review-request-when-chat').textContent = when;
+    document.getElementById('therapist-review-request-when').textContent = when;
+    ids.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'block'; });
+  } catch (e) { /* nessuna richiesta o collegamento non attivo */ }
+}
+
+// Vista del tutor su un utente collegato: stato d'animo di oggi, livelli di
+// focus/energia/stress, stelle e statistiche (stessi calcoli dell'utente).
+async function loadTherapistOverview(patientId) {
+  const moodEl = document.getElementById('t-mood-today');
+  const barsEl = document.getElementById('t-state-bars');
+  moodEl.textContent = '—'; barsEl.innerHTML = '';
+  try {
+    const o = await api.get('/api/stats/patient/' + patientId + '/overview');
+
+    if (o.todayMood && QUICK_MOOD_LABELS[o.todayMood]) {
+      moodEl.innerHTML = `<span style="font-size:28px;vertical-align:middle">${QUICK_MOOD_FACES[o.todayMood]}</span> <b>${QUICK_MOOD_LABELS[o.todayMood]}</b> <span style="color:var(--muted-fg);font-size:13px">(scelto oggi)</span>`;
+    } else if (o.lastCheckin && o.lastCheckin.mood !== null && o.lastCheckin.mood !== undefined) {
+      moodEl.innerHTML = `<span style="font-size:28px;vertical-align:middle">${moodEmoji(o.lastCheckin.mood)}</span> <b>${o.lastCheckin.mood}/10</b> <span style="color:var(--muted-fg);font-size:13px">(ultimo check-in, ${new Date(o.lastCheckin.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('it-IT')})</span>`;
+    } else {
+      moodEl.innerHTML = '<span style="color:var(--muted-fg)">Oggi non ha ancora indicato come si sente.</span>';
+    }
+
+    if (o.state) {
+      const row = (label, pct, invert) => {
+        const good = invert ? 100 - pct : pct;
+        const color = good >= 66 ? 'hsl(142,60%,45%)' : (good >= 33 ? 'hsl(40,90%,50%)' : 'hsl(2,75%,55%)');
+        return `<div class="progress-label"><span>${label}</span><span class="state-right"><span class="battery"><span class="battery-fill" style="width:${pct}%;background:${color}"></span></span><span>${pct}%</span></span></div>`;
+      };
+      barsEl.innerHTML = row('Focus', o.state.focus ?? 50, false) + row('Energia', o.state.energy ?? 50, false) + row('Stress', o.state.stress ?? 50, true);
+    } else {
+      barsEl.innerHTML = '<p class="empty-hint">Oggi non ha ancora indicato focus, energia e stress.</p>';
+    }
+
+    document.getElementById('t-stars-total').textContent = o.stars.total;
+    document.getElementById('t-superstars-total').textContent = o.stars.superStars;
+    document.getElementById('t-stars-week').innerHTML = o.stars.week.map(d => {
+      const label = new Date(d.date + 'T12:00:00').toLocaleDateString('it-IT', { weekday: 'short' });
+      return `<div style="text-align:center;font-size:11px;color:var(--muted-fg)"><div style="font-size:22px;${d.star ? '' : 'filter:grayscale(1);opacity:.3'}">⭐</div>${label}</div>`;
+    }).join('');
+
+    const patient = (state.therapistPatients || []).find(p => p.id === patientId);
+    const teen = patient ? patient.age_group === 'teen' : true;
+    const color = teen ? 'var(--primary)' : 'hsl(39,81%,45%)';
+    const data = o.detailed;
+    const weekLabels = ['6gg fa','5gg fa','4gg fa','3gg fa','2gg fa','Ieri','Oggi'];
+    document.getElementById('tstats-day-pct').textContent = data.day.pct === null ? '—' : data.day.pct + '%';
+    renderBreakdownList('tstats-day-breakdown', data.day.categoryBreakdown, color);
+    document.getElementById('tstats-week-avg').textContent = data.week.avgPct === null ? '—' : data.week.avgPct + '%';
+    renderBarChart('tstats-week-chart', data.week.days.map((d, i) => ({ pct: d.pct, label: weekLabels[i] })), color);
+    renderBreakdownList('tstats-week-breakdown', data.week.categoryBreakdown, color);
+    document.getElementById('tstats-month-avg').textContent = data.month.avgPct === null ? '—' : data.month.avgPct + '%';
+    renderBarChart('tstats-month-chart', data.month.buckets, color);
+    renderBreakdownList('tstats-month-breakdown', data.month.categoryBreakdown, color);
+  } catch (e) {
+    console.error('Errore panoramica utente:', e);
+    moodEl.textContent = 'Non sono riuscito a caricare la panoramica: ' + (e.message || 'errore sconosciuto');
+  }
 }
 
 async function proposeReviewSlot() {

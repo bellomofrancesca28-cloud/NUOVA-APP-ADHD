@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { requireAuth, requireRole } = require('../middleware');
+const { sendMail } = require('../mailer');
 
 const router = express.Router();
 
@@ -30,6 +31,40 @@ router.get('/', requireAuth, (req, res) => {
   res.json({ slots });
 });
 
+// Richiesta di revisione: l'utente la invia al proprio tutor, che la vede nel
+// profilo di quell'utente e risponde proponendo data e ora.
+router.get('/request', requireAuth, (req, res) => {
+  const pair = resolvePair(req);
+  if (!pair) return res.status(403).json({ error: 'Nessun collegamento paziente-tutor trovato.' });
+  const request = db.prepare('SELECT * FROM review_requests WHERE patient_id = ? AND therapist_id = ?')
+    .get(pair.patientId, pair.therapistId);
+  res.json({ request: request || null });
+});
+
+router.post('/request', requireAuth, requireRole('patient'), (req, res) => {
+  const pair = resolvePair(req);
+  if (!pair) return res.status(403).json({ error: 'Per chiedere una revisione devi essere collegato a un tutor.' });
+  const existing = db.prepare('SELECT * FROM review_requests WHERE patient_id = ?').get(pair.patientId);
+  if (existing) return res.status(409).json({ error: 'Hai già inviato una richiesta: il tutor la vedrà a breve.' });
+  db.prepare('INSERT INTO review_requests (patient_id, therapist_id) VALUES (?, ?)').run(pair.patientId, pair.therapistId);
+  const request = db.prepare('SELECT * FROM review_requests WHERE patient_id = ?').get(pair.patientId);
+  // Avvisiamo il tutor anche via email.
+  const tutor = db.prepare('SELECT name, email FROM users WHERE id = ?').get(pair.therapistId);
+  if (tutor && tutor.email) {
+    sendMail({
+      to: tutor.email,
+      subject: 'Richiesta di revisione su ADHD Coach',
+      text: `Ciao ${tutor.name}, ${req.user.nickname || req.user.name} ha chiesto una revisione.\n\nAccedi all'app, apri il profilo dell'utente e proponi una data e un orario.`,
+    });
+  }
+  res.json({ request });
+});
+
+router.delete('/request', requireAuth, requireRole('patient'), (req, res) => {
+  db.prepare('DELETE FROM review_requests WHERE patient_id = ?').run(req.user.id);
+  res.json({ ok: true });
+});
+
 // Solo il terapeuta propone un orario (deciso insieme a Barbara): il
 // paziente potrà solo confermare o rifiutare quanto proposto.
 router.post('/', requireAuth, requireRole('therapist'), (req, res) => {
@@ -42,6 +77,8 @@ router.post('/', requireAuth, requireRole('therapist'), (req, res) => {
     INSERT INTO review_slots (patient_id, therapist_id, slot_date, slot_time, cadence, status, proposed_by)
     VALUES (?, ?, ?, ?, ?, 'proposed', 'therapist')
   `).run(pair.patientId, pair.therapistId, date, time, validCadence);
+  // Il tutor ha risposto alla richiesta (se c'era): la chiudiamo.
+  db.prepare('DELETE FROM review_requests WHERE patient_id = ?').run(pair.patientId);
   const slot = db.prepare('SELECT * FROM review_slots WHERE id = ?').get(info.lastInsertRowid);
   res.json({ slot });
 });

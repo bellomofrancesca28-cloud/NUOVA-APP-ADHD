@@ -3,6 +3,7 @@ const db = require('../db');
 const { requireAuth, requireRole } = require('../middleware');
 const stats = require('../stats-engine');
 const { todayStr } = require('../helpers');
+const { computeStars } = require('../stars');
 
 const router = express.Router();
 
@@ -12,14 +13,11 @@ router.get('/summary', requireAuth, requireRole('patient'), (req, res) => {
 
 // Pagina "Statistiche": oggi / settimana / mese, ciascuno con percentuale
 // complessiva e distribuzione per categoria, calcolati sui dati reali.
-router.get('/detailed', requireAuth, requireRole('patient'), (req, res) => {
-  const user = req.user;
+function detailedFor(user) {
   const today = todayStr();
-
   const week = stats.weekHistory(user.id);
   const monthBuckets = stats.weeklyBuckets(user.id, 5);
-
-  res.json({
+  return {
     day: {
       pct: stats.dayCompletionPct(user.id, today),
       categoryBreakdown: stats.categoryBreakdownRange(user.id, user.age_group, 1),
@@ -34,6 +32,32 @@ router.get('/detailed', requireAuth, requireRole('patient'), (req, res) => {
       avgPct: stats.overallAvg(monthBuckets.map(b => b.pct)),
       categoryBreakdown: stats.categoryBreakdownRange(user.id, user.age_group, 30),
     },
+  };
+}
+
+router.get('/detailed', requireAuth, requireRole('patient'), (req, res) => {
+  res.json(detailedFor(req.user));
+});
+
+// Il tutor vede, per un utente collegato, lo stato d'animo di oggi, il livello
+// di focus/energia/stress, le stelle e le statistiche (oggi/settimana/mese).
+router.get('/patient/:patientId/overview', requireAuth, requireRole('therapist'), (req, res) => {
+  const link = db.prepare('SELECT * FROM patient_therapist WHERE patient_id = ? AND therapist_id = ? AND status = \'active\'').get(req.params.patientId, req.user.id);
+  if (!link) return res.status(403).json({ error: 'Questo utente non è collegato al tuo account.' });
+  const patient = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.patientId);
+  const todayMood = db.prepare(`
+    SELECT mood_label, created_at FROM checkins
+    WHERE user_id = ? AND mood_label IS NOT NULL AND date(created_at) = date('now')
+    ORDER BY created_at DESC, id DESC LIMIT 1
+  `).get(patient.id);
+  const lastCheckin = db.prepare('SELECT mood, created_at FROM checkins WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 1').get(patient.id);
+  const state = db.prepare('SELECT energy, focus, stress FROM daily_state WHERE user_id = ? AND date = ?').get(patient.id, todayStr());
+  res.json({
+    todayMood: todayMood ? todayMood.mood_label : null,
+    lastCheckin: lastCheckin || null,
+    state: state || null,
+    stars: computeStars(patient.id),
+    detailed: detailedFor(patient),
   });
 });
 
