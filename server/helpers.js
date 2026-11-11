@@ -1,12 +1,12 @@
 // helpers.js — funzioni condivise tra le varie rotte
 const CATEGORY_SETS = {
-  teen: ['Routine', 'Scuola', 'Focus', 'Energia'],
-  adult: ['Lavoro', 'Casa', 'Benessere'],
+  teen: ['Studio', 'Tempo libero', 'Salute'],
+  adult: ['Lavoro', 'Tempo libero', 'Salute'],
 };
 
-// Le categorie "Routine"/"Lavoro" sono quelle che contano come "routine" per
+// Le categorie "Studio"/"Lavoro" sono quelle che contano come "routine" per
 // l'anello streak/routine nella dashboard; le altre contano come "attività".
-const ROUTINE_CATEGORY = { teen: 'Routine', adult: 'Lavoro' };
+const ROUTINE_CATEGORY = { teen: 'Studio', adult: 'Lavoro' };
 
 function ageGroupFromRange(ageRange) {
   return ageRange === 'teen' ? 'teen' : 'adult';

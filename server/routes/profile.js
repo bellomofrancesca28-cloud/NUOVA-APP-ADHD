@@ -18,7 +18,14 @@ const ALLOWED_IMAGE_TYPES = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/we
 const MAX_PHOTO_BYTES = 3 * 1024 * 1024; // 3MB, generoso per una foto profilo
 
 router.put('/', requireAuth, (req, res) => {
-  const { name, nickname, avatar, job, goal, bio, specialty } = req.body || {};
+  const { name, nickname, avatar, job, goal, bio, specialty, birth_date } = req.body || {};
+  if (req.user.role === 'patient') {
+    const bd = String(birth_date || '');
+    const d = new Date(bd);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(bd) || isNaN(d) || d > new Date() || d.getFullYear() < 1900) {
+      return res.status(400).json({ error: 'Inserisci una data di nascita valida.' });
+    }
+  }
   db.prepare(`
     UPDATE users SET
       name = COALESCE(NULLIF(@name, ''), name),
@@ -27,7 +34,8 @@ router.put('/', requireAuth, (req, res) => {
       job = @job,
       goal = @goal,
       bio = @bio,
-      specialty = @specialty
+      specialty = @specialty,
+      birth_date = COALESCE(@birth_date, birth_date)
     WHERE id = @id
   `).run({
     id: req.user.id,
@@ -38,6 +46,7 @@ router.put('/', requireAuth, (req, res) => {
     goal: goal || null,
     bio: bio || null,
     specialty: specialty || null,
+    birth_date: birth_date || null,
   });
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
   res.json({ user: publicUser(user) });
@@ -46,9 +55,15 @@ router.put('/', requireAuth, (req, res) => {
 // Preferenze di notifica, chieste una volta subito dopo la registrazione
 // (schermata dedicata) ma modificabili in qualsiasi momento in seguito.
 router.put('/notifications', requireAuth, (req, res) => {
-  const { push, email, reminders } = req.body || {};
+  const { push, email, reminders, morningTime, leadMin } = req.body || {};
   db.prepare('UPDATE users SET notif_push = ?, notif_email = ?, notif_reminders = ? WHERE id = ?')
     .run(push ? 1 : 0, email ? 1 : 0, reminders ? 1 : 0, req.user.id);
+  if (/^([01]\d|2[0-3]):[0-5]\d$/.test(morningTime || '')) {
+    db.prepare('UPDATE users SET notif_morning_time = ? WHERE id = ?').run(morningTime, req.user.id);
+  }
+  if ([5, 10, 15, 30, 60].includes(Number(leadMin))) {
+    db.prepare('UPDATE users SET notif_lead_min = ? WHERE id = ?').run(Number(leadMin), req.user.id);
+  }
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
   res.json({ user: publicUser(user) });
 });

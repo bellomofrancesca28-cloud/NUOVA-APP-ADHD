@@ -4,9 +4,12 @@
 // reali (vedi api.js). Questo sostituisce gli array finti del prototipo.
 
 const EMOJI_OPTIONS = ['🦊','🐢','🦉','🐝','🌟','🚀','🎨','🎧','🌊','🔥','🍃','🐨'];
-const CAT_CLASS = { Routine:'agenda-cat-routine', Scuola:'agenda-cat-scuola', Focus:'agenda-cat-focus', Energia:'agenda-cat-energia', Lavoro:'agenda-cat-lavoro', Casa:'agenda-cat-casa', Benessere:'agenda-cat-benessere' };
+const CAT_CLASS = { Routine:'agenda-cat-routine', Scuola:'agenda-cat-scuola', Focus:'agenda-cat-focus', Energia:'agenda-cat-energia', Lavoro:'agenda-cat-lavoro', Casa:'agenda-cat-casa', 'Tempo libero':'agenda-cat-tempolibero', Benessere:'agenda-cat-benessere', Studio:'agenda-cat-scuola', Salute:'agenda-cat-benessere' };
+// Emoji accanto a ogni categoria.
+const CAT_EMOJI = { Lavoro:'💼', Studio:'📚', Scuola:'📚', Salute:'❤️', Benessere:'❤️', 'Tempo libero':'🌿', Casa:'🌿', Routine:'🔄', Focus:'🎯', Energia:'⚡' };
+function catLabel(c) { return (CAT_EMOJI[c] ? CAT_EMOJI[c] + ' ' : '') + c; }
 const STATUS_LABEL = { done:'Fatta', active:'In corso', todo:'Da fare' };
-const ROUTINE_CATEGORY = { teen:'Routine', adult:'Lavoro' };
+const ROUTINE_CATEGORY = { teen:'Studio', adult:'Lavoro' };
 const CAPACITY_HINTS = {
   bassa:'Energia e focus bassi oggi: partiamo dalle attività più leggere.',
   media:'Energia nella media: un mix equilibrato va bene.',
@@ -206,6 +209,7 @@ async function saveNotificationsPrefs() {
     reminders: document.getElementById('notif-reminders').checked,
   };
   try { await api.put('/api/profile/notifications', payload); } catch (e) { /* non blocchiamo l'accesso per un errore qui */ }
+  if (payload.push) askBrowserNotifications();
   document.getElementById('view-notifications').style.display = 'none';
   showConsentScreen();
 }
@@ -366,6 +370,30 @@ function showPairingWaiting(request) {
   // dell'app, se nel frattempo il tutor ha accettato, mostreremo un avviso di
   // conferma nella dashboard invece di entrare in silenzio.
   localStorage.setItem('pendingTutorNotify', '1');
+  startPairingPolling();
+}
+
+// Finché l'utente è sulla schermata "in attesa", controlliamo ogni pochi
+// secondi se il tutor ha accettato: appena succede, entra da solo nell'app.
+let pairingPollTimer = null;
+function startPairingPolling() {
+  clearInterval(pairingPollTimer);
+  pairingPollTimer = setInterval(async () => {
+    const waiting = document.getElementById('view-pairing-waiting');
+    if (!waiting || waiting.style.display !== 'flex') { clearInterval(pairingPollTimer); return; }
+    try {
+      const me = await api.get('/api/auth/me');
+      if (me.therapistLink) {
+        clearInterval(pairingPollTimer);
+        state.user = me.user;
+        state.therapistLink = me.therapistLink;
+        await enterApp();
+      } else if (!me.pendingTherapistRequest) {
+        clearInterval(pairingPollTimer);
+        showPairing();
+      }
+    } catch (e) { /* riproviamo al prossimo giro */ }
+  }, 5000);
 }
 
 async function cancelPairingRequest() {
@@ -435,7 +463,6 @@ async function enterApp() {
   applyRoleVisibility();
   renderAllAvatars();
   buildMobileBar();
-  updateTimerDisplay();
 
   const displayName = state.user.nickname || state.user.name;
   document.getElementById('acct-name-el').textContent = displayName;
@@ -476,6 +503,7 @@ function dismissTutorAcceptedBanner() {
 
 function applyRoleVisibility() {
   const role = state.user.role;
+  document.body.dataset.role = role;
   document.querySelectorAll('.role-patient').forEach(el => { el.style.display = role === 'patient' ? '' : 'none'; });
   document.querySelectorAll('.role-therapist').forEach(el => { el.style.display = role === 'therapist' ? '' : 'none'; });
   document.querySelectorAll('.role-parent').forEach(el => { el.style.display = role === 'parent' ? '' : 'none'; });
@@ -493,8 +521,8 @@ function applyRoleVisibility() {
     document.getElementById('dash-subtab-bar').className = 'subtab-bar' + (teen ? '' : ' adult');
     document.querySelectorAll('.progress-fill').forEach(el => el.classList.toggle('progress-fill-adult', !teen));
     document.querySelectorAll('.progress-range').forEach(el => el.classList.toggle('progress-range-adult', !teen));
-    state.categories = teen ? ['Routine','Scuola','Focus','Energia'] : ['Lavoro','Casa','Benessere'];
-    document.getElementById('messaggi-title').textContent = state.therapistLink ? `Note per ${state.therapistLink.therapist_name}` : 'Note';
+    state.categories = teen ? ['Studio','Tempo libero','Salute'] : ['Lavoro','Tempo libero','Salute'];
+    document.getElementById('messaggi-title').textContent = state.therapistLink ? state.therapistLink.therapist_name : 'Il tuo tutor';
     // Per gli account minorenni il codice per i genitori non si gestisce più
     // dal profilo del ragazzo/a: lo genera e lo condivide il tutor dalla sua
     // pagina (vedi loadTherapistPatientDetail). Per gli adulti resta invariato.
@@ -544,13 +572,18 @@ function navigate(id) {
 }
 
 function navigateTo(id) {
+  if (id === 'therapist-review' && state.user && state.user.role === 'therapist' && !state.currentTherapistChatPatientId) {
+    showToast('Scegli prima un utente dalla Home, poi apri la Revisione.');
+    id = 'home';
+  }
   navigate(id);
   const actualId = id === 'home' ? resolveHomeTarget() : id;
   if (PAGE_LOADERS[actualId]) PAGE_LOADERS[actualId]();
 }
 
 function goToAgenda() {
-  switchSubtab('dash', 'agenda', document.querySelector('#dash-subtab-bar .subtab-btn:nth-child(2)'));
+  const card = document.getElementById('today-card');
+  if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function toggleAttivitaAddForm() {
@@ -560,8 +593,8 @@ function toggleAttivitaAddForm() {
   if (willShow) {
     const routineCat = ROUTINE_CATEGORY[state.user.age_group];
     const catSelect = document.getElementById('attivita-new-cat');
-    // Per gli adulti "Lavoro" è selezionabile anche qui (Casa, Benessere, Lavoro).
-    catSelect.innerHTML = state.categories.filter(c => state.user.age_group !== 'teen' || c !== routineCat).map(c => `<option value="${c}">${c}</option>`).join('');
+    // Per gli adulti "Lavoro" è selezionabile anche qui (Tempo libero, Salute, Lavoro).
+    catSelect.innerHTML = state.categories.filter(c => state.user.age_group !== 'teen' || c !== routineCat).map(c => `<option value="${c}">${catLabel(c)}</option>`).join('');
     document.getElementById('attivita-new-title').focus();
   }
 }
@@ -640,6 +673,14 @@ function loadProfilePage() {
   renderAllAvatars();
   document.getElementById('prof-name').value = state.user.name || '';
   document.getElementById('prof-nickname').value = state.user.nickname || '';
+  document.getElementById('prof-birth').value = state.user.birth_date || '';
+  document.getElementById('pn-push').checked = !!state.user.notif_push;
+  document.getElementById('pn-reminders').checked = !!state.user.notif_reminders;
+  document.getElementById('pn-email').checked = !!state.user.notif_email;
+  document.getElementById('pn-morning').value = state.user.notif_morning_time || '08:00';
+  document.getElementById('pn-lead').value = String(state.user.notif_lead_min || 15);
+  document.getElementById('prof-hello').textContent = state.user.nickname || state.user.name || '';
+  document.getElementById('prof-birth').max = new Date().toISOString().slice(0, 10);
   if (state.user.role === 'patient') {
     document.getElementById('prof-goal').value = state.user.goal || '';
     document.getElementById('prof-job').value = state.user.job || '';
@@ -741,6 +782,8 @@ async function saveProfile() {
     avatar: state.user.avatar,
   };
   if (state.user.role === 'patient') {
+    payload.birth_date = document.getElementById('prof-birth').value;
+    if (!payload.birth_date) { alert('Inserisci la tua data di nascita.'); document.getElementById('prof-birth').focus(); return; }
     payload.goal = document.getElementById('prof-goal').value;
     payload.job = document.getElementById('prof-job').value.trim();
   } else if (state.user.role === 'therapist') {
@@ -758,30 +801,12 @@ async function saveProfile() {
   setTimeout(() => el.style.display = 'none', 2500);
 }
 
-/* ========================= TIMER FOCUS ========================= */
-const TIMER_RING_CIRCUMFERENCE = 2 * Math.PI * 100;
-let timerTotalSeconds = 15*60, timerRemaining = 15*60, timerInterval = null, timerRunning = false;
-function updateTimerDisplay() {
-  const m = Math.floor(timerRemaining/60), s = timerRemaining%60;
-  const displayEl = document.getElementById('timer-display');
-  if (displayEl) displayEl.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-  const pct = timerTotalSeconds ? timerRemaining/timerTotalSeconds : 0;
-  const ring = document.getElementById('timer-ring-fill');
-  if (ring) {
-    ring.style.strokeDasharray = TIMER_RING_CIRCUMFERENCE;
-    ring.style.strokeDashoffset = TIMER_RING_CIRCUMFERENCE * (1 - pct);
-  }
-}
-function setTimerDuration(minutes, btn) {
-  if (timerRunning) return;
-  timerTotalSeconds = minutes*60;
-  timerRemaining = timerTotalSeconds;
-  document.querySelectorAll('.timer-preset-btn').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  document.getElementById('timer-done-msg').style.display = 'none';
-  const ctx = document.getElementById('timer-context');
-  if (ctx) ctx.style.display = 'none';
-  updateTimerDisplay();
+/* ========================= TIMER PER ATTIVITÀ ========================= */
+// Un piccolo timer accanto a ogni attività dell'agenda: si sceglie la durata
+// (5, 10, 15, 25 minuti), si avvia, si mette in pausa o si azzera.
+const itemTimers = {}; // itemId -> { minutes, remaining, running, interval, title, rerender }
+function fmtTimer(sec) {
+  return `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
 }
 function playTimerTone() {
   try {
@@ -795,60 +820,51 @@ function playTimerTone() {
     o.start(); o.stop(ctx.currentTime+0.9);
   } catch (e) {}
 }
-function toggleTimer() {
-  const btn = document.getElementById('timer-start-btn');
-  const presets = document.querySelectorAll('.timer-preset-btn');
-  if (timerRunning) {
-    clearInterval(timerInterval);
-    timerRunning = false;
-    btn.innerHTML = '<i class="ti ti-player-play"></i>Riprendi';
-    presets.forEach(p => p.disabled = false);
-    return;
+function miniTimerHtml(item) {
+  const t = itemTimers[item.id];
+  if (!t) {
+    return `<span class="mini-timer"><select class="mini-timer-sel" title="Durata del timer">${[5, 10, 15, 25].map(m => `<option value="${m}"${m === 15 ? ' selected' : ''}>${m} min</option>`).join('')}</select><button type="button" class="mini-timer-btn" data-act="start" title="Avvia il timer"><i class="ti ti-player-play"></i></button></span>`;
   }
-  timerRunning = true;
-  btn.innerHTML = '<i class="ti ti-player-pause"></i>Pausa';
-  document.getElementById('timer-done-msg').style.display = 'none';
-  presets.forEach(p => p.disabled = true);
-  timerInterval = setInterval(() => {
-    timerRemaining--;
-    updateTimerDisplay();
-    if (timerRemaining <= 0) {
-      clearInterval(timerInterval);
-      timerRunning = false;
-      btn.innerHTML = '<i class="ti ti-player-play"></i>Avvia';
-      presets.forEach(p => p.disabled = false);
-      document.getElementById('timer-done-msg').style.display = 'block';
-      playTimerTone();
-    }
-  }, 1000);
+  return `<span class="mini-timer active"><b class="mini-timer-display" data-item="${item.id}">${fmtTimer(t.remaining)}</b><button type="button" class="mini-timer-btn" data-act="toggle" title="${t.running ? 'Pausa' : 'Riprendi'}"><i class="ti ${t.running ? 'ti-player-pause' : 'ti-player-play'}"></i></button><button type="button" class="mini-timer-btn" data-act="reset" title="Annulla il timer"><i class="ti ti-x"></i></button></span>`;
 }
-function resetTimer() {
-  clearInterval(timerInterval);
-  timerRunning = false;
-  timerRemaining = timerTotalSeconds;
-  const btn = document.getElementById('timer-start-btn');
-  if (btn) btn.innerHTML = '<i class="ti ti-player-play"></i>Avvia';
-  document.querySelectorAll('.timer-preset-btn').forEach(p => p.disabled = false);
-  const msg = document.getElementById('timer-done-msg'); if (msg) msg.style.display = 'none';
-  updateTimerDisplay();
+function tickItemTimer(id) {
+  const t = itemTimers[id];
+  if (!t) return;
+  t.remaining--;
+  document.querySelectorAll(`.mini-timer-display[data-item="${id}"]`).forEach(el => { el.textContent = fmtTimer(Math.max(t.remaining, 0)); });
+  if (t.remaining <= 0) {
+    clearInterval(t.interval);
+    const { title, rerender } = t;
+    delete itemTimers[id];
+    playTimerTone();
+    showToast(`⏰ Tempo scaduto: «${title}». Ora fai una pausa vera.`);
+    if (rerender) rerender();
+  }
+}
+function startItemTimer(item, minutes, rerender) {
+  const old = itemTimers[item.id];
+  if (old) clearInterval(old.interval);
+  const t = { minutes, remaining: minutes * 60, running: true, title: item.title, rerender };
+  t.interval = setInterval(() => tickItemTimer(item.id), 1000);
+  itemTimers[item.id] = t;
+  if (rerender) rerender();
+}
+function toggleItemTimer(item, rerender) {
+  const t = itemTimers[item.id];
+  if (!t) return;
+  if (t.running) { clearInterval(t.interval); t.running = false; }
+  else { t.running = true; t.interval = setInterval(() => tickItemTimer(item.id), 1000); }
+  if (rerender) rerender();
+}
+function resetItemTimer(item, rerender) {
+  const t = itemTimers[item.id];
+  if (t) clearInterval(t.interval);
+  delete itemTimers[item.id];
+  if (rerender) rerender();
 }
 function parseStepMinutes(text) {
   const m = text.match(/(\d+)\s*min/i);
   return m ? parseInt(m[1], 10) : 15;
-}
-function startTimerForStep(minutes, label) {
-  navigateTo('attivita');
-  const timerCard = document.getElementById('attivita-timer-card');
-  if (timerCard) timerCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  if (timerRunning) { clearInterval(timerInterval); timerRunning = false; }
-  timerTotalSeconds = minutes*60;
-  timerRemaining = timerTotalSeconds;
-  document.querySelectorAll('.timer-preset-btn').forEach(b => b.classList.toggle('active', parseInt(b.textContent,10) === minutes));
-  const ctx = document.getElementById('timer-context');
-  const ctxText = document.getElementById('timer-context-text');
-  if (ctx && ctxText) { ctx.style.display = 'block'; ctxText.textContent = label; }
-  updateTimerDisplay();
-  toggleTimer();
 }
 
 /* ========================= DASHBOARD (agenda + stato + stats) ========================= */
@@ -883,7 +899,7 @@ async function loadDashboardPage() {
   });
 
   const catSelect = document.getElementById('dash-new-cat');
-  catSelect.innerHTML = state.categories.map(c => `<option value="${c}">${c}</option>`).join('');
+  catSelect.innerHTML = state.categories.map(c => `<option value="${c}">${catLabel(c)}</option>`).join('');
 
   renderGoalCards();
   renderAgendaList();
@@ -934,6 +950,16 @@ async function saveQuickMood(label) {
     showToast(e.message || 'Non sono riuscito a salvare.');
   }
 }
+
+// Contatore stelle in alto a destra (stile Duolingo): un tocco apre i dettagli della settimana.
+function toggleStarsPopover(e) {
+  if (e) e.stopPropagation();
+  document.getElementById('stars-popover').classList.toggle('open');
+}
+document.addEventListener('click', () => {
+  const p = document.getElementById('stars-popover');
+  if (p) p.classList.remove('open');
+});
 
 // Stelle giornaliere: totale + ultimi 7 giorni (calcolate dal server).
 async function loadStars() {
@@ -1018,7 +1044,7 @@ function renderSuggested() {
     const fits = tier === 'bassa' ? item.effort === 'Basso' : tier === 'media' ? item.effort !== 'Alto' : true;
     const div = document.createElement('div');
     div.style.cssText = 'border:1px solid var(--border);border-radius:8px;padding:14px' + (fits ? '' : ';opacity:0.55');
-    div.innerHTML = `<p style="font-size:13px;font-weight:500">${escapeHtml(item.title)}</p><p style="font-size:11px;color:var(--muted-fg);margin-top:8px">${escapeHtml(item.category)} · Sforzo ${item.effort}</p>`;
+    div.innerHTML = `<p style="font-size:13px;font-weight:500">${escapeHtml(item.title)}</p><p style="font-size:11px;color:var(--muted-fg);margin-top:8px">${escapeHtml(catLabel(item.category))} · Sforzo ${item.effort}</p>`;
     list.appendChild(div);
   });
 }
@@ -1039,11 +1065,11 @@ function renderGoalCards() {
     </div>
     <div class="goal-ring-card">
       <div class="goal-ring-svg-wrap">${ringSvg(rings.routine.pct,color)}<div class="ring-value">${rings.routine.done}/${rings.routine.total}</div></div>
-      <div class="goal-ring-text"><div class="goal-ring-label">${teen?'Routine oggi':'Task lavoro'}</div><div class="goal-ring-title">${rings.routine.pct}%</div><div class="goal-ring-hint">${rings.routine.total ? (rings.routine.done ? 'In buona strada' : 'Ancora da iniziare') : 'Nessuna voce pianificata oggi'}</div></div>
+      <div class="goal-ring-text"><div class="goal-ring-label">${teen?'Studio oggi':'Task lavoro'}</div><div class="goal-ring-title">${rings.routine.pct}%</div><div class="goal-ring-hint">${rings.routine.total ? (rings.routine.done ? 'In buona strada' : 'Ancora da iniziare') : 'Nessuna voce pianificata oggi'}</div></div>
     </div>
     <div class="goal-ring-card">
       <div class="goal-ring-svg-wrap">${ringSvg(rings.other.pct,color)}<div class="ring-value">${rings.other.done}/${rings.other.total}</div></div>
-      <div class="goal-ring-text"><div class="goal-ring-label">${teen?'Attività':'Casa e benessere'}</div><div class="goal-ring-title">${rings.other.pct}%</div><div class="goal-ring-hint">Completate oggi</div></div>
+      <div class="goal-ring-text"><div class="goal-ring-label">${teen?'Attività':'Tempo libero e salute'}</div><div class="goal-ring-title">${rings.other.pct}%</div><div class="goal-ring-hint">Completate oggi</div></div>
     </div>
     <div class="goal-ring-card">
       <div class="goal-ring-svg-wrap">${ringSvg(100,color)}<div class="ring-value"><i class="ti ti-sparkles" style="font-size:20px;color:${color}"></i></div></div>
@@ -1058,10 +1084,28 @@ function renderAgendaPreview() {
   items.forEach(item => list.appendChild(agendaRowEl(item, true)));
 }
 
+// Riassunto in cima alla Home: quante attività di oggi sono già fatte e qual è la prossima.
+function renderTodayProgress() {
+  const textEl = document.getElementById('today-summary-text');
+  const fill = document.getElementById('today-progress-fill');
+  if (!textEl || !fill) return;
+  const items = state.agendaItems || [];
+  const total = items.length;
+  const done = items.filter(i => i.status === 'done').length;
+  fill.style.width = (total ? Math.round(done / total * 100) : 0) + '%';
+  if (!total) { textEl.textContent = 'Nessuna attività per oggi: aggiungine una qui sotto.'; return; }
+  const next = items.filter(i => i.status !== 'done').sort((a, b) => String(a.time).localeCompare(String(b.time)))[0];
+  textEl.textContent = done === total
+    ? `Hai completato tutte le ${total} attività di oggi. Ottimo lavoro! 🎉`
+    : `${done} su ${total} completate · prossima: ${next.time} ${next.title}`;
+}
+
 function renderAgendaList() {
+  renderTodayProgress();
   const list = document.getElementById('dash-agenda-list'); list.innerHTML = '';
-  if (!state.agendaItems.length) { list.innerHTML = '<p class="empty-hint">Ancora nessuna voce in agenda per oggi. Aggiungine una qui sotto.</p>'; return; }
-  state.agendaItems.forEach(item => list.appendChild(agendaRowEl(item, false)));
+  if (!state.agendaItems.length) { list.innerHTML = '<p class="empty-hint">Nessuna attività per oggi. Puoi aggiungerne dalla pagina Attività.</p>'; return; }
+  state.agendaItems.slice().sort((a, b) => String(a.time).localeCompare(String(b.time)))
+    .forEach(item => list.appendChild(agendaRowEl(item, false)));
 }
 
 // "opts" permette di riusare questa stessa riga (con l'espansione in piccoli
@@ -1077,11 +1121,15 @@ function agendaRowEl(item, compact, opts) {
   const done = item.status === 'done';
   const active = item.status === 'active';
   const row = document.createElement('div');
-  row.className = 'agenda-row' + (done ? ' agenda-done' : '') + (item._expanded && !compact ? ' expanded' : '');
+  row.className = 'agenda-row' + (done ? ' agenda-done' : '') + (item._expanded && !compact ? ' expanded' : '') + (CAT_CLASS[item.category] ? ' row-' + CAT_CLASS[item.category] : '');
   const icon = done ? 'ti-circle-check' : (active ? 'ti-player-play-filled' : 'ti-circle');
   const iconColor = done ? 'var(--primary)' : (active ? 'hsl(39,81%,45%)' : 'hsl(214,19%,72%)');
   const doneSteps = (item.steps||[]).filter(s=>s.done).length;
   const stepsBadge = (!compact && item.steps && item.steps.length) ? `<span class="agenda-steps-badge">${doneSteps}/${item.steps.length} passi</span>` : '';
+  const runningTimer = (!compact && !done) ? itemTimers[item.id] : null;
+  const miniTimer = runningTimer
+    ? `<span class="mini-timer-badge" title="Timer in corso"><i class="ti ti-clock"></i> <b class="mini-timer-display" data-item="${item.id}">${fmtTimer(runningTimer.remaining)}</b></span>`
+    : '';
   const expandBtnHtml = compact ? '' : `<button class="agenda-expand-btn" title="Dividi in piccoli passi"><i class="ti ${item._expanded?'ti-chevron-up':'ti-chevron-down'}"></i></button>`;
   row.innerHTML = `
     <span class="agenda-time">${escapeHtml(item.time)}</span>
@@ -1091,7 +1139,8 @@ function agendaRowEl(item, compact, opts) {
       <span>${STATUS_LABEL[item.status]}</span>
     </div>
     ${stepsBadge}
-    <span class="agenda-cat ${CAT_CLASS[item.category]||''}">${escapeHtml(item.category)}</span>
+    ${miniTimer}
+    <span class="agenda-cat ${CAT_CLASS[item.category]||''}">${escapeHtml(catLabel(item.category))}</span>
     ${expandBtnHtml}`;
   row.addEventListener('click', async (e) => {
     if (e.target.closest('.agenda-expand-btn')) return;
@@ -1116,7 +1165,7 @@ function agendaRowEl(item, compact, opts) {
       const stepRow = document.createElement('div'); stepRow.className = 'step-row';
       stepRow.innerHTML = `<i class="ti ${step.done?'ti-square-rounded-check step-done':'ti-square-rounded'}"></i><p class="${step.done?'done':''}">${escapeHtml(step.text)}</p><button class="step-timer-btn" title="Avvia timer per questo passo"><i class="ti ti-clock-play"></i></button><i class="ti ti-x step-remove" title="Rimuovi passo"></i>`;
       stepRow.querySelector('i').onclick = async () => { await api.patch(`/api/agenda/${item.id}/steps/${step.id}`, { done: !step.done }); await onStepChange(item.id); };
-      stepRow.querySelector('.step-timer-btn').onclick = (e) => { e.stopPropagation(); startTimerForStep(parseStepMinutes(step.text), step.text); };
+      stepRow.querySelector('.step-timer-btn').onclick = (e) => { e.stopPropagation(); startItemTimer(item, parseStepMinutes(step.text), onToggleExpand); };
       stepRow.querySelector('.step-remove').onclick = async () => { await api.del(`/api/agenda/${item.id}/steps/${step.id}`); await onStepChange(item.id); };
       panel.appendChild(stepRow);
     });
@@ -1131,6 +1180,21 @@ function agendaRowEl(item, compact, opts) {
     addRow.querySelector('button').onclick = commitStep;
     stepInput.onkeydown = (e) => { if (e.key === 'Enter') commitStep(); };
     panel.appendChild(addRow);
+    if (!done) {
+      const timerRow = document.createElement('div'); timerRow.className = 'step-timer-row';
+      timerRow.innerHTML = `<span class="step-timer-label"><i class="ti ti-clock-play"></i> Timer</span>${miniTimerHtml(item)}`;
+      const miniEl = timerRow.querySelector('.mini-timer');
+      miniEl.querySelectorAll('.mini-timer-btn').forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          const act = btn.dataset.act;
+          if (act === 'start') startItemTimer(item, parseInt(miniEl.querySelector('.mini-timer-sel').value, 10), onToggleExpand);
+          else if (act === 'toggle') toggleItemTimer(item, onToggleExpand);
+          else resetItemTimer(item, onToggleExpand);
+        };
+      });
+      panel.appendChild(timerRow);
+    }
     wrap.appendChild(panel);
   }
   return wrap;
@@ -1150,6 +1214,14 @@ async function reloadCurrentAgendaView(keepExpandedId, expandedItemId) {
   renderTodaySummary();
   // Se siamo sulla pagina Attività, aggiorniamola anche lei.
   if (document.getElementById('page-attivita').classList.contains('active')) renderAttivitaGroups();
+}
+
+// Pulsante "Aggiungi un'attività" nella Home: apre/chiude il modulo.
+function toggleTodayAddForm() {
+  const form = document.getElementById('today-add-form');
+  const open = form.style.display === 'none';
+  form.style.display = open ? 'flex' : 'none';
+  if (open) document.getElementById('dash-new-title').focus();
 }
 
 async function addAgendaItem() {
@@ -1184,8 +1256,8 @@ function renderTodaySummary() {
     </div>`;
 
   document.getElementById('dash-today-summary').innerHTML =
-    block(teen ? 'Routine' : 'Lavoro', doneRoutine, routineItems.length) +
-    block(teen ? 'Attività' : 'Casa e benessere', doneActivity, activityItems.length);
+    block(teen ? 'Studio' : 'Lavoro', doneRoutine, routineItems.length) +
+    block(teen ? 'Attività' : 'Tempo libero e salute', doneActivity, activityItems.length);
 }
 
 /* ========================= STATISTICHE (giorno / settimana / mese) ========================= */
@@ -1209,7 +1281,7 @@ function renderBreakdownList(containerId, breakdown, color) {
   if (!breakdown.length) { el.innerHTML = '<p class="empty-hint">Nessun dato disponibile.</p>'; return; }
   breakdown.forEach(c => {
     const row = document.createElement('div'); row.className = 'cat-breakdown-row';
-    row.innerHTML = `<div class="progress-label"><span>${escapeHtml(c.category)}</span><span>${c.done}/${c.total} · ${c.pct}%</span></div><div class="progress-bar"><div class="progress-fill" style="width:${c.pct}%;background:${color}"></div></div>`;
+    row.innerHTML = `<div class="progress-label"><span>${escapeHtml(catLabel(c.category))}</span><span>${c.done}/${c.total} · ${c.pct}%</span></div><div class="progress-bar"><div class="progress-fill" style="width:${c.pct}%;background:${color}"></div></div>`;
     el.appendChild(row);
   });
 }
@@ -1256,7 +1328,8 @@ async function loadCalendarioPage() {
   const d = new Date(state.calendarioDate + 'T00:00:00');
   state.calendarioMonthYear = d.getFullYear();
   state.calendarioMonthMonth = d.getMonth() + 1;
-  await loadCalendarioGiorno();
+  // Il calendario mostra solo la vista Mese.
+  await loadCalendarioMese();
 }
 
 function switchCalendarioTab(tab, btn) {
@@ -1276,7 +1349,7 @@ async function loadCalendarioGiorno() {
   document.getElementById('calendario-day-label').textContent = fmtDateHuman(state.calendarioDate);
   document.getElementById('calendario-day-form-desc').textContent = 'Per ' + fmtDateHuman(state.calendarioDate).toLowerCase();
   const catSelect = document.getElementById('calendario-new-cat');
-  catSelect.innerHTML = state.categories.map(c => `<option value="${c}">${c}</option>`).join('');
+  catSelect.innerHTML = state.categories.map(c => `<option value="${c}">${catLabel(c)}</option>`).join('');
   const res = await api.get('/api/agenda?date=' + state.calendarioDate);
   state.calendarioItems = res.items;
   renderCalendarioGiornoList();
@@ -1332,7 +1405,20 @@ function addCalendarioEvent() {
   return submitCalendarioNewEvent('calendario-new', reloadCalendarioGiorno);
 }
 function addCalendarioEventFromMonth() {
-  return submitCalendarioNewEvent('calendario-month-new', loadCalendarioMese);
+  return submitCalendarioNewEvent('calendario-month-new', async () => {
+    await loadCalendarioMese();
+    document.getElementById('calendario-month-form-card').style.display = 'none';
+  });
+}
+// Il "+" accanto al titolo del Calendario apre/chiude il modulo "Nuovo impegno".
+function toggleCalendarioAddForm() {
+  const card = document.getElementById('calendario-month-form-card');
+  const open = card.style.display === 'none';
+  card.style.display = open ? 'block' : 'none';
+  if (open) {
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.getElementById('calendario-month-new-title').focus();
+  }
 }
 
 function goToCalendarioDay(dateStr) {
@@ -1433,7 +1519,7 @@ async function loadCalendarioMese() {
   // Modulo "Nuovo impegno" agganciato al giorno selezionato nella griglia.
   document.getElementById('calendario-month-form-desc').textContent = 'Per ' + fmtDateHuman(state.calendarioDate).toLowerCase();
   const monthCatSelect = document.getElementById('calendario-month-new-cat');
-  monthCatSelect.innerHTML = state.categories.map(c => `<option value="${c}">${c}</option>`).join('');
+  monthCatSelect.innerHTML = state.categories.map(c => `<option value="${c}">${catLabel(c)}</option>`).join('');
 
   try {
     const res = await api.get(`/api/agenda/month?year=${y}&month=${m}`);
@@ -1446,6 +1532,19 @@ async function loadCalendarioMese() {
     });
   } catch (e) {
     console.error('Impossibile caricare il riepilogo del mese:', e);
+  }
+
+  // Stato d'animo registrato nei vari giorni: l'emoji compare nella casella del giorno.
+  try {
+    const mres = await api.get(`/api/checkins/month?year=${y}&month=${m}`);
+    mres.days.forEach(d => {
+      const cell = grid.querySelector(`[data-date="${d.date}"]`);
+      if (!cell || cell.querySelector('.calendario-month-mood')) return;
+      const face = (d.mood_label && QUICK_MOOD_FACES[d.mood_label]) || moodEmoji(d.mood);
+      cell.insertAdjacentHTML('beforeend', `<em class="calendario-month-mood" title="Stato d'animo">${face}</em>`);
+    });
+  } catch (e) {
+    console.error('Impossibile caricare gli stati d\'animo del mese:', e);
   }
 
   // Elenco vero e proprio degli impegni del giorno selezionato (non solo il
@@ -1495,7 +1594,7 @@ function renderAttivitaGroups() {
     const items = state.agendaItems.filter(i => i.category === cat);
     const card = document.createElement('div'); card.className = 'card';
     const listId = 'attivita-list-' + cat.replace(/\s/g,'-');
-    card.innerHTML = `<div class="card-title">${escapeHtml(cat)}</div><div class="card-desc"></div><div id="${listId}"></div>`;
+    card.innerHTML = `<div class="card-title">${escapeHtml(catLabel(cat))}</div><div class="card-desc"></div><div id="${listId}"></div>`;
     container.appendChild(card);
     const listEl = card.querySelector('#'+listId);
     if (!items.length) { listEl.innerHTML = '<p class="empty-hint">Niente qui per oggi.</p>'; return; }
@@ -1569,6 +1668,8 @@ function loadCheckinPage() {
     div.appendChild(d);
   });
   document.getElementById('checkin-note').value = '';
+  loadQuickMood();
+  dqLoad();
   loadCheckinDiary();
 }
 async function saveCheckin() {
@@ -1635,13 +1736,29 @@ async function pollTherapistRequests() {
       if (requests.length) showToast(`Hai ${requests.length} richiest${requests.length === 1 ? 'a' : 'e'} di collegamento in attesa. 🔔`);
     } else if (requests.length > knownRequestCount) {
       showToast('Nuova richiesta di collegamento da un utente! 🔔');
+      notifyUser('Nuova richiesta', 'Un utente vuole collegarsi a te.');
     }
     if (knownRequestCount !== requests.length) await loadTherapistRequests();
     knownRequestCount = requests.length;
   } catch (e) { /* silenzioso: riproviamo al prossimo giro */ }
+  // nuove richieste di revisione da parte degli utenti collegati
+  try {
+    const { patients } = await api.get('/api/therapists/patients');
+    const ids = (patients || []).filter(p => p.review_requested).map(p => p.id);
+    if (knownReviewIds !== null) {
+      const fresh = (patients || []).filter(p => p.review_requested && !knownReviewIds.includes(p.id));
+      fresh.forEach(p => {
+        showToast(`${p.nickname || p.name} ha richiesto una revisione 📅`);
+        notifyUser('Richiesta di revisione', `${p.nickname || p.name} ha richiesto una revisione.`);
+      });
+    }
+    knownReviewIds = ids;
+  } catch (e) {}
 }
+let knownReviewIds = null;
 function startRequestsPolling() {
   knownRequestCount = null;
+  knownReviewIds = null;
   clearInterval(requestsPollTimer);
   pollTherapistRequests();
   requestsPollTimer = setInterval(pollTherapistRequests, 20000);
@@ -1739,8 +1856,9 @@ function renderMessageRow(container, m, myRole) {
 }
 
 async function loadMessagesPage() {
-  document.getElementById('messaggi-title').textContent = state.therapistLink ? `Note per ${state.therapistLink.therapist_name}` : 'Note';
+  document.getElementById('messaggi-title').textContent = state.therapistLink ? state.therapistLink.therapist_name : 'Il tuo tutor';
   const { messages } = await api.get('/api/messages');
+  document.getElementById('messages-summary').textContent = `Le tue note (${messages.length})`;
   const list = document.getElementById('messages-list'); list.innerHTML = '';
   if (!messages.length) { list.innerHTML = '<p class="empty-hint">Ancora nessuna nota.</p>'; }
   messages.forEach(m => renderMessageRow(list, m, 'patient'));
@@ -1757,7 +1875,7 @@ async function sendMsg() {
 
 /* ========================= AREA TERAPEUTA ========================= */
 async function loadTherapistPage() {
-  document.getElementById('therapist-greeting').textContent = `Bentornato/a, ${state.user.nickname || state.user.name}`;
+  document.getElementById('therapist-greeting').textContent = `Ciao, ${state.user.nickname || state.user.name}`;
   await loadTherapistRequests();
   const { patients } = await api.get('/api/therapists/patients');
   state.therapistPatients = patients;
@@ -1779,24 +1897,20 @@ async function loadTherapistPage() {
   document.getElementById('therapist-watch-count').textContent = watchCount;
 
   cards.forEach(({ p, data }) => {
-    const trendVals = data.checkinTrend.length >= 2 ? data.checkinTrend.map(c => c.mood) : data.summary.week.map(w => w.pct);
     const t = data.moodTrendInfo;
-    const card = document.createElement('div'); card.className = 'patient-card';
-    card.onclick = () => openTherapistChat(p.id, p.nickname || p.name, p.age_group);
+    const tone = t.trend === 'down' ? 'warn' : (t.trend === 'up' ? 'ok' : 'idle');
+    const label = t.trend === 'down' ? '🟡 Da seguire' : (t.trend === 'up' ? '🟢 Sta andando bene' : '⚪ Ancora pochi dati');
+    const name = p.nickname || p.name;
+    const card = document.createElement('div'); card.className = 'patient-card t-user';
+    card.onclick = () => openTherapistChat(p.id, name, p.age_group);
     card.innerHTML = `
-      <div class="patient-card-head">
-        <div><span class="patient-name">${escapeHtml(p.nickname || p.name)}</span> <span class="status-badge" style="font-size:10px">${p.age_group === 'teen' ? 'Teen' : 'Adulto'}</span></div>
-        <span class="patient-last-checkin">Collegato dal ${new Date(p.linked_since).toLocaleDateString('it-IT')}</span>
+      <div class="t-avatar">${escapeHtml(name.charAt(0).toUpperCase())}</div>
+      <div class="t-user-main">
+        <div><span class="patient-name">${escapeHtml(name)}</span> <span class="status-badge" style="font-size:10px">${p.age_group === 'teen' ? 'Teen' : 'Adulto'}</span></div>
+        <div class="t-status t-${tone}"><span class="t-dot"></span>${label}</div>
+        ${p.review_requested ? '<div class="t-review">📅 Ha richiesto una revisione</div>' : ''}
       </div>
-      ${p.review_requested ? '<div style="margin:6px 0"><span class="status-badge" style="background:hsl(262,52%,92%);color:hsl(262,52%,40%)">📅 Ha richiesto una revisione</span></div>' : ''}
-      <div class="patient-card-body">
-        <div class="patient-sparkline">${sparklineSvg(trendVals, t.trend === 'down' ? 'hsl(39,81%,45%)' : (t.trend === 'up' ? 'var(--primary)' : 'var(--muted-fg)'))}</div>
-        <div class="patient-trend-label" style="color:${t.trend==='down'?'hsl(39,81%,45%)':(t.trend==='up'?'var(--primary)':'var(--muted-fg)')}">${t.text}</div>
-        <div class="patient-metrics">
-          <span>Streak <b>${data.summary.streak}gg</b></span>
-          <span>Oggi <b>${data.summary.goalRings.routine.pct}%</b> routine</span>
-        </div>
-      </div>`;
+      <i class="ti ti-chevron-right t-chev"></i>`;
     list.appendChild(card);
   });
 }
@@ -1865,16 +1979,17 @@ async function openTherapistChat(patientId, displayName, ageGroup) {
   navigateTo('therapist-chat');
   const pInfo = (state.therapistPatients || []).find(p => p.id === patientId);
   document.getElementById('therapist-patient-info').innerHTML = pInfo ? contactInfoHtml(pInfo) : '';
-  document.getElementById('therapist-chat-title').textContent = 'Note di ' + displayName;
+  document.getElementById('therapist-chat-title').textContent = displayName;
+  tchatTab('oggi', document.querySelector('.tc-tabs .subtab-btn'));
   loadTherapistReviewRequestBanner(patientId);
   loadTherapistOverview(patientId);
   const familyCard = document.getElementById('therapist-family-code-card');
   document.getElementById('therapist-family-code-error').textContent = '';
   if (ageGroup === 'teen') {
-    familyCard.style.display = 'block';
+    document.getElementById('tc-tab-genitori').style.display = '';
     await Promise.all([loadTherapistMessages(), loadTherapistPatientDiary(), loadTherapistFamilyCode()]);
   } else {
-    familyCard.style.display = 'none';
+    document.getElementById('tc-tab-genitori').style.display = 'none';
     await Promise.all([loadTherapistMessages(), loadTherapistPatientDiary()]);
   }
 }
@@ -1899,7 +2014,25 @@ async function generateTherapistFamilyCode() {
     errEl.textContent = e.message;
   }
 }
+async function loadTherapistQuestionnaire() {
+  const box = document.getElementById('therapist-questionnaire-list');
+  try {
+    const { entries } = await api.get('/api/checkins/questionnaire/patient/' + state.currentTherapistChatPatientId);
+    if (!entries.length) { box.innerHTML = '<p class="empty-hint">Nessuna risposta ancora.</p>'; return; }
+    box.innerHTML = entries.map((e, i) => {
+      const rows = DQ_STEPS.filter(x => !x.opt && e.answers[x.key]).map(x => {
+        const det = e.answers[x.key + '_f'];
+        return `<div class="dq-recap-row"><span class="dq-recap-q">${escapeHtml(x.topic)}</span><span class="dq-recap-a">${escapeHtml(e.answers[x.key])}${det ? `<small>${escapeHtml(det)}</small>` : ''}</span></div>`;
+      }).join('');
+      const label = new Date(e.day + 'T12:00:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
+      return `<details class="tq-day"${i === 0 ? ' open' : ''}><summary>${escapeHtml(label)}</summary>${rows || '<p class="empty-hint">Nessuna risposta.</p>'}</details>`;
+    }).join('');
+  } catch (err) {
+    box.innerHTML = '<p class="empty-hint">Non sono riuscito a caricare le risposte.</p>';
+  }
+}
 async function loadTherapistPatientDiary() {
+  loadTherapistQuestionnaire();
   const container = document.getElementById('therapist-checkin-diary-list');
   try {
     const { checkins } = await api.get('/api/checkins/patient/' + state.currentTherapistChatPatientId);
@@ -1997,11 +2130,11 @@ async function loadReviewRequestState() {
     if (request) {
       btn.style.display = 'none';
       cancelBtn.style.display = '';
-      desc.textContent = `Richiesta inviata il ${new Date(request.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('it-IT')}. Il tuo tutor la vedrà e ti proporrà una data e un orario.`;
+      desc.textContent = `Richiesta inviata il ${new Date(request.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('it-IT')}. Il tutor ti proporrà data e ora.`;
     } else {
       btn.style.display = '';
       cancelBtn.style.display = 'none';
-      desc.textContent = 'Vuoi fare il punto con il tuo tutor? Invia una richiesta: lui ti proporrà una data e un orario, che potrai confermare o rifiutare.';
+      desc.textContent = 'Un incontro video di 15 minuti per fare il punto. Richiedila: il tutor ti propone data e ora.';
     }
   } catch (e) {
     desc.textContent = 'Per chiedere una revisione devi essere collegato a un tutor.';
@@ -2039,8 +2172,7 @@ async function loadRevisionePage() {
       onCancel: () => cancelReviewSlot(confirmedUpcoming.id),
     }));
   } else {
-    nextCard.style.display = 'block';
-    nextEl.innerHTML = '<p class="empty-hint">Nessuna revisione in programma. Il tuo tutor ti proporrà un orario.</p>';
+    nextCard.style.display = 'none';
   }
 
   const pendingCard = document.getElementById('revisione-pending-card');
@@ -2050,13 +2182,13 @@ async function loadRevisionePage() {
     pendingEl.innerHTML = '';
     pending.forEach(s => pendingEl.appendChild(reviewSlotRow(s, { showRespond: true })));
   } else {
-    pendingCard.style.display = 'block';
-    pendingEl.innerHTML = '<p class="empty-hint">Nessun orario da confermare.</p>';
+    pendingCard.style.display = 'none';
   }
 
   const historyEl = document.getElementById('revisione-history');
   historyEl.innerHTML = '';
-  if (!rest.length) { historyEl.innerHTML = '<p class="empty-hint">Ancora nessuna revisione passata.</p>'; }
+  const historyDetails = document.getElementById('revisione-history-details');
+  if (historyDetails) historyDetails.style.display = rest.length ? '' : 'none';
   rest.slice().reverse().forEach(s => historyEl.appendChild(reviewSlotRow(s, {})));
 }
 
@@ -2191,7 +2323,7 @@ async function refreshCurrentReviewPage() {
 // Elenco dei figli/e collegati. Nella maggior parte dei casi ce n'è uno solo,
 // ma la struttura regge anche più di un account collegato allo stesso genitore.
 async function loadParentPage() {
-  document.getElementById('parent-greeting').textContent = `Bentornato/a, ${state.user.nickname || state.user.name}`;
+  document.getElementById('parent-greeting').textContent = `Ciao, ${state.user.nickname || state.user.name}`;
   const { children } = await api.get('/api/family/children');
   state.children = children;
   const list = document.getElementById('parent-children-list'); list.innerHTML = '';
@@ -2200,12 +2332,12 @@ async function loadParentPage() {
     return;
   }
   children.forEach(c => {
-    const card = document.createElement('div'); card.className = 'patient-card';
+    const card = document.createElement('div'); card.className = 'patient-card t-user';
     card.onclick = () => openParentChild(c.id, c.nickname || c.name);
     card.innerHTML = `
-      <div class="patient-card-head">
-        <div><span class="patient-name">${escapeHtml(c.avatar || '🦊')} ${escapeHtml(c.nickname || c.name)}</span> <span class="status-badge" style="font-size:10px">${c.age_group === 'teen' ? '14-17' : '>18'}</span></div>
-      </div>`;
+      <div class="t-avatar">${escapeHtml(c.avatar || '🦊')}</div>
+      <div class="t-user-main"><span class="patient-name">${escapeHtml(c.nickname || c.name)}</span></div>
+      <i class="ti ti-chevron-right t-chev"></i>`;
     list.appendChild(card);
   });
 }
@@ -2219,6 +2351,7 @@ async function openParentChild(childId, displayName) {
 async function loadParentChildPage() {
   const data = await api.get('/api/family/children/' + state.currentParentChildId + '/overview');
   document.getElementById('parent-child-title').textContent = data.child.nickname || data.child.name;
+  pchildTab('oggi', document.querySelector('.pc-tabs .subtab-btn'));
 
   // Agenda di oggi
   const agendaList = document.getElementById('parent-child-agenda'); agendaList.innerHTML = '';
@@ -2228,7 +2361,7 @@ async function loadParentChildPage() {
     data.agenda.forEach(item => {
       const done = item.status === 'done';
       const row = document.createElement('div'); row.className = 'activity-row';
-      row.innerHTML = `<i class="ti ${done ? 'ti-circle-check done-icon' : 'ti-circle todo-icon'}"></i><div class="activity-info"><p style="${done?'text-decoration:line-through;color:var(--muted-fg)':''}">${escapeHtml(item.title)}</p><span>${escapeHtml(item.time)} · ${escapeHtml(item.category)}</span></div>`;
+      row.innerHTML = `<i class="ti ${done ? 'ti-circle-check done-icon' : 'ti-circle todo-icon'}"></i><div class="activity-info"><p style="${done?'text-decoration:line-through;color:var(--muted-fg)':''}">${escapeHtml(item.title)}</p><span>${escapeHtml(item.time)} · ${escapeHtml(catLabel(item.category))}</span></div>`;
       agendaList.appendChild(row);
     });
   }
@@ -2257,7 +2390,9 @@ async function loadParentChildPage() {
   const tl = data.therapistLink;
   if (!tl) {
     tutorCard.style.display = 'none';
+    document.getElementById('parent-child-no-tutor').style.display = 'block';
   } else {
+    document.getElementById('parent-child-no-tutor').style.display = 'none';
     tutorCard.style.display = 'block';
     document.getElementById('parent-child-tutor-avatar').innerHTML = tl.therapist_photo
       ? `<img src="${escapeHtml(tl.therapist_photo)}" alt="">`
@@ -2276,3 +2411,152 @@ async function loadParentChildPage() {
 
 /* ========================= AVVIO ========================= */
 document.addEventListener('DOMContentLoaded', boot);
+
+
+// ===== Domande del Diario (una alla volta) =====
+const DQ_STEPS = [
+  { key:'umore', topic:'😊 Umore', q:'Come ti sei sentito emotivamente oggi?', o:['Sereno e positivo','Abbastanza bene','Altalenante','Giù di morale','Irritabile o frustrato','Ho fatto fatica a capire come mi sentivo'] },
+  { key:'umore_f', topic:'😊 Umore · facoltativa', q:'Cosa ha influenzato maggiormente il tuo umore?', o:['Scuola o lavoro','Relazioni con gli altri','Qualcosa che è successo oggi','Stanchezza o mancanza di energie','Non saprei','Altro'], opt:true },
+  { key:'energia', topic:'⚡ Energia mentale', q:'Come ti sei sentito rispetto alle energie mentali oggi?', o:['Pieno di energie','Abbastanza energico','Nella media','Piuttosto affaticato','Mentalmente esausto'] },
+  { key:'energia_f', topic:'⚡ Energia mentale · facoltativa', q:'Quando hai sentito maggiormente un calo di energia?', o:['Al mattino','Nel primo pomeriggio','Nel tardo pomeriggio','Alla sera','Non ho avuto cali evidenti'], opt:true },
+  { key:'focus', topic:'🎯 Focus', q:'Quanto sei riuscito a mantenere la concentrazione sulle attività di oggi?', o:['Molto facilmente','Abbastanza facilmente','Con qualche difficoltà','Con molte difficoltà','Non sono riuscito a concentrarmi come avrei voluto','Oggi non avevo attività che richiedessero concentrazione'] },
+  { key:'focus_f', topic:'🎯 Focus · facoltativa', q:'Cosa ha reso più difficile concentrarti?', o:['Distrazioni esterne','Pensieri che mi distraevano','Stanchezza','Difficoltà a iniziare','Difficoltà a mantenere l\'attenzione','Troppe attività da gestire','Nessuna difficoltà particolare'], opt:true },
+  { key:'stress', topic:'😰 Stress', q:'Quanto ti sei sentito sotto pressione oggi?', o:['Per niente','Poco','Moderatamente','Molto','Tantissimo'] },
+  { key:'stress_f', topic:'😰 Stress · facoltativa', q:'Qual è stato il principale fattore di stress?', o:['Scuola o lavoro','Scadenze e impegni','Relazioni con gli altri','Organizzazione del tempo','Troppe cose da fare contemporaneamente','Nessun fattore di stress particolare','Non saprei individuarlo'], opt:true },
+  { key:'sonno', topic:'😴 Qualità del sonno', q:'Come valuti il tuo sonno della notte scorsa?', o:['Molto buono','Buono','Nella media','Poco soddisfacente','Molto insoddisfacente'] },
+  { key:'sonno_f', topic:'😴 Qualità del sonno · facoltativa', q:'Quale aspetto del sonno ti ha dato maggiori difficoltà?', o:['Addormentarmi','Svegliarmi durante la notte','Svegliarmi troppo presto','Alzarmi al mattino','Sentirmi riposato durante il giorno','Nessuna difficoltà particolare'], opt:true },
+  { key:'carico', topic:'🧠 Carico cognitivo', q:'Quanto ti sei sentito mentalmente sovraccarico oggi?', o:['Per niente','Poco','Moderatamente','Molto','Tantissimo'] },
+  { key:'carico_f', topic:'🧠 Carico cognitivo · facoltativa', q:'Cosa ha contribuito maggiormente al tuo carico mentale?', o:['Troppe attività da svolgere','Difficoltà a organizzare le priorità','Dover ricordare molte cose','Passare frequentemente da un\'attività all\'altra','Prendere molte decisioni','Rumori o stimoli ambientali','Nessuna difficoltà particolare','Non saprei'], opt:true },
+];
+let dqIndex = 0, dqAnswers = {};
+async function dqLoad() {
+  if (!document.getElementById('dq-card')) return;
+  try { dqAnswers = (await api.get('/api/checkins/questionnaire/today')).answers || {}; } catch (e) { dqAnswers = {}; }
+  // riparte dalla prima domanda senza risposta (tra quelle obbligatorie)
+  const first = DQ_STEPS.findIndex(s => !s.opt && !dqAnswers[s.key]);
+  dqIndex = first === -1 ? DQ_STEPS.length : first;
+  dqRender();
+}
+function dqRender() {
+  const total = DQ_STEPS.length;
+  document.getElementById('dq-progress-fill').style.width = Math.min(100, dqIndex / total * 100) + '%';
+  const topic = document.getElementById('dq-topic'), qEl = document.getElementById('dq-question');
+  const opts = document.getElementById('dq-options');
+  const back = document.getElementById('dq-back'), skip = document.getElementById('dq-skip');
+  if (dqIndex >= total) {
+    topic.textContent = 'Fatto';
+    qEl.textContent = 'Grazie! Il tuo diario di oggi è completo 🌿';
+    opts.innerHTML = DQ_STEPS.filter(x => !x.opt && dqAnswers[x.key]).map(x => {
+      const det = dqAnswers[x.key + '_f'];
+      return `<div class="dq-recap-row"><span class="dq-recap-q">${escapeHtml(x.topic)}</span><span class="dq-recap-a">${escapeHtml(dqAnswers[x.key])}${det ? `<small>${escapeHtml(det)}</small>` : ''}</span></div>`;
+    }).join('');
+    back.style.display = 'none'; skip.style.display = 'none';
+    return;
+  }
+  const st = DQ_STEPS[dqIndex];
+  topic.textContent = st.topic;
+  qEl.textContent = st.q;
+  opts.innerHTML = '';
+  st.o.forEach(label => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'dq-option' + (dqAnswers[st.key] === label ? ' selected' : '');
+    b.textContent = label;
+    b.onclick = () => dqAnswer(st.key, label);
+    opts.appendChild(b);
+  });
+  back.style.display = dqIndex > 0 ? '' : 'none';
+  skip.style.display = st.opt ? '' : 'none';
+}
+async function dqAnswer(key, value) {
+  dqAnswers[key] = value;
+  dqRender();
+  try { await api.post('/api/checkins/questionnaire', { key, value }); } catch (e) { console.error(e); }
+  setTimeout(dqNext, 250);
+}
+function dqNext() { if (dqIndex < DQ_STEPS.length) { dqIndex++; dqRender(); } }
+function dqBack() { if (dqIndex > 0) { dqIndex--; dqRender(); } }
+
+
+/* ========================= NOTIFICHE NEL BROWSER (solo con il consenso) ========================= */
+function askBrowserNotifications() {
+  if (!('Notification' in window) || Notification.permission !== 'default') return;
+  try { Notification.requestPermission(); } catch (e) {}
+}
+function notifyUser(title, body) {
+  const u = state.user;
+  if (!u || !u.notif_push) return;
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try { new Notification(title, { body }); } catch (e) {}
+}
+async function saveProfileNotifs() {
+  const payload = {
+    push: document.getElementById('pn-push').checked,
+    email: document.getElementById('pn-email').checked,
+    reminders: document.getElementById('pn-reminders').checked,
+    morningTime: document.getElementById('pn-morning').value,
+    leadMin: Number(document.getElementById('pn-lead').value),
+  };
+  const data = await api.put('/api/profile/notifications', payload);
+  state.user = data.user;
+  if (payload.push) askBrowserNotifications();
+  const el = document.getElementById('pn-saved');
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 2000);
+}
+const notifiedKeys = new Set();
+function notifTick() {
+  const u = state.user;
+  if (!u || !u.notif_push) return;
+  const now = new Date();
+  const hhmm = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+  const day = now.toISOString().slice(0, 10);
+  if (u.role === 'patient' && u.notif_reminders) {
+    const today = (state.agendaItems || []).filter(it => state.agendaDate === day && it.status !== 'done');
+    const sorted = today.slice().sort((a, b) => String(a.time || '').localeCompare(String(b.time || '')));
+    // mattina (all'orario scelto, o appena apri l'app nelle 4 ore dopo): riepilogo delle attività della giornata, una sola volta
+    const mins = now.getHours() * 60 + now.getMinutes();
+    const sumKey = 'notif_sum_' + u.id + '_' + day;
+    const [mh, mm] = String(u.notif_morning_time || '08:00').split(':').map(Number);
+    const morning = mh * 60 + mm;
+    if (mins >= morning && mins < morning + 240 && state.agendaDate === day && !localStorage.getItem(sumKey)) {
+      localStorage.setItem(sumKey, '1');
+      if (sorted.length) {
+        const list = sorted.slice(0, 4).map(it => (it.time ? String(it.time).slice(0, 5) + ' ' : '') + it.title).join(' · ');
+        notifyUser('Le attività di oggi ☀️', list + (sorted.length > 4 ? ` · +${sorted.length - 4}` : ''));
+      } else {
+        notifyUser('Buongiorno ☀️', 'Oggi non hai ancora attività: vuoi aggiungerne una?');
+      }
+    }
+    // 15 minuti prima di ogni attività
+    sorted.forEach(it => {
+      if (!it.time) return;
+      const [h, m] = String(it.time).slice(0, 5).split(':').map(Number);
+      if (isNaN(h) || isNaN(m)) return;
+      if (h * 60 + m - (u.notif_lead_min || 15) !== mins) return;
+      const k = day + '|' + it.id;
+      if (notifiedKeys.has(k)) return;
+      notifiedKeys.add(k);
+      notifyUser(`Tra ${u.notif_lead_min || 15} minuti ⏰`, it.title);
+    });
+    if (hhmm === '20:00' && !notifiedKeys.has(day + '|diario')) {
+      notifiedKeys.add(day + '|diario');
+      notifyUser('Il tuo diario 🌿', 'Come è andata oggi? Dedica un minuto al diario.');
+    }
+  }
+}
+setInterval(notifTick, 20000);
+
+function tchatTab(name, btn) {
+  document.querySelectorAll('#page-therapist-chat .tc-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tc-' + name).classList.add('active');
+  document.querySelectorAll('#page-therapist-chat .tc-tabs .subtab-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+
+function pchildTab(name, btn) {
+  document.querySelectorAll('#page-parent-child .tc-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('pc-' + name).classList.add('active');
+  document.querySelectorAll('#page-parent-child .pc-tabs .subtab-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}

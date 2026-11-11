@@ -10,7 +10,8 @@ const Database = require('better-sqlite3');
 const DATA_DIR = path.join(__dirname, 'data');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
-const DB_PATH = path.join(DATA_DIR, 'app.sqlite');
+// DB_PATH permette di usare un database separato (es. per la demo adolescente)
+const DB_PATH = process.env.DB_PATH || path.join(DATA_DIR, 'app.sqlite');
 const db = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
@@ -208,6 +209,29 @@ db.exec(`
   )
 `);
 
+// Domande del Diario (una risposta per giorno, salvata come JSON).
+db.exec(`
+  CREATE TABLE IF NOT EXISTS diary_answers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    day TEXT NOT NULL,
+    answers TEXT NOT NULL DEFAULT '{}',
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, day)
+  )
+`);
+
+// MIGRAZIONE: per gli adulti la categoria "Casa" diventa "Tempo libero":
+// aggiorniamo le attività già salvate così non spariscono dalle statistiche.
+db.prepare("UPDATE agenda_items SET category = 'Tempo libero' WHERE category = 'Casa'").run();
+// Rinomina categorie: "Benessere" -> "Salute", "Scuola" -> "Studio".
+db.prepare("UPDATE agenda_items SET category = 'Salute' WHERE category = 'Benessere'").run();
+db.prepare("UPDATE agenda_items SET category = 'Studio' WHERE category = 'Scuola'").run();
+// Adolescenti: le categorie sono Studio, Tempo libero, Salute. Le vecchie
+// "Routine" e "Focus" passano a Studio, "Energia" a Salute.
+db.prepare("UPDATE agenda_items SET category = 'Studio' WHERE category IN ('Routine', 'Focus')").run();
+db.prepare("UPDATE agenda_items SET category = 'Salute' WHERE category = 'Energia'").run();
+
 // MIGRAZIONE: "Come ti senti oggi?" (faccine nella Home) salva l'umore scelto
 // come etichetta (benissimo, bene, cosi_cosi, triste, arrabbiato).
 const checkinColumns = db.prepare("PRAGMA table_info(checkins)").all().map(c => c.name);
@@ -281,6 +305,12 @@ if (!userColumns5.includes('cv_file')) {
 // Numero di iscrizione all'ordine professionale del tutor (visibile agli utenti).
 if (!userColumns5.includes('order_number')) {
   db.exec('ALTER TABLE users ADD COLUMN order_number TEXT');
+}
+if (!userColumns5.includes('notif_morning_time')) {
+  db.exec("ALTER TABLE users ADD COLUMN notif_morning_time TEXT DEFAULT '08:00'");
+}
+if (!userColumns5.includes('notif_lead_min')) {
+  db.exec('ALTER TABLE users ADD COLUMN notif_lead_min INTEGER DEFAULT 15');
 }
 if (!userColumns5.includes('birth_date')) {
   db.exec('ALTER TABLE users ADD COLUMN birth_date TEXT');

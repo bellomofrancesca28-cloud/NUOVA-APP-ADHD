@@ -112,6 +112,7 @@ router.post('/register', (req, res) => {
     user.order_number = orderNumber.trim();
     const base = process.env.APP_BASE_URL || `${req.get('x-forwarded-proto') || req.protocol}://${req.get('host')}`;
     const link = `${base}/api/auth/approve-tutor?token=${token}`;
+    console.log('\n>>> LINK PER APPROVARE IL TUTOR:', link, '\n');
     const adminEmail = process.env.ADMIN_EMAIL || 'bellomofrancesca28@gmail.com';
     sendMail({
       to: adminEmail,

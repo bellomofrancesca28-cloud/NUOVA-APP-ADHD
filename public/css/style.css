@@ -2,6 +2,9 @@
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:hsl(204,33%,97%);color:hsl(222,24%,14%);min-height:100vh}
 :root{
   --primary:hsl(172,59%,33%);
+  --primary-dark:hsl(172,59%,27%);
+  --tint:hsl(172,59%,91%);
+  --tint-soft:hsl(172,59%,96%);
   --muted:hsl(210,22%,92%);
   --muted-fg:hsl(215,12%,42%);
   --card-bg:#fff;
@@ -41,7 +44,7 @@ body[data-page="revisione"],body[data-page="therapist-review"]{--page-a:hsl(165,
 .auth-disclaimer{font-size:11px;color:var(--muted-fg);text-align:center;margin-top:18px;line-height:1.6}
 .role-toggle{display:flex;gap:8px}
 .role-toggle-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;border:1px solid var(--border);border-radius:8px;background:#fff;font-size:13px;cursor:pointer;color:var(--muted-fg);font-family:inherit}
-.role-toggle-btn.active{background:hsl(172,59%,91%);color:var(--primary);border-color:var(--primary);font-weight:600}
+.role-toggle-btn.active{background:var(--tint);color:var(--primary);border-color:var(--primary);font-weight:600}
 .therapist-pick-card{border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;cursor:pointer;transition:border-color .15s}
 .therapist-pick-card:hover{border-color:var(--primary)}
 .therapist-pick-head{display:flex;align-items:center;gap:12px}
@@ -111,7 +114,7 @@ body[data-page="revisione"],body[data-page="therapist-review"]{--page-a:hsl(165,
 .mobile-bar-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 10px;border-radius:12px;background:none;border:none;font-size:10px;color:var(--muted-fg);cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0;min-width:56px}
 .mobile-bar-btn.active{color:var(--primary);font-weight:600}
 .mobile-bar-btn .nav-icon-chip{width:26px;height:26px;border-radius:9px;font-size:15px;background:none!important;color:inherit!important}
-.mobile-bar-btn.active .nav-icon-chip{background:hsl(172,59%,91%)!important}
+.mobile-bar-btn.active .nav-icon-chip{background:var(--tint)!important}
 .main{max-width:900px;margin:0 auto;padding:28px 24px}
 
 /* ===== PAGES ===== */
@@ -196,7 +199,7 @@ h1{font-size:26px;font-weight:600;margin-bottom:8px}
 /* ===== CALENDARIO ===== */
 .calendario-month-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
 .calendario-month-head{text-align:center;font-size:11px;color:var(--muted-fg);font-weight:600;padding:4px 0 8px}
-.calendario-month-day{position:relative;aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:10px;font-size:13px;cursor:pointer;transition:background 0.12s,transform 0.12s}
+.calendario-month-day{position:relative;aspect-ratio:1;display:flex;flex-direction:column;gap:2px;align-items:center;justify-content:center;border-radius:10px;font-size:13px;cursor:pointer;transition:background 0.12s,transform 0.12s}
 .calendario-month-day:hover{background:var(--muted)}
 .calendario-month-day.today{font-weight:700;color:var(--primary);box-shadow:inset 0 0 0 1.5px var(--primary)}
 .calendario-month-day.selected{background:var(--primary);color:#fff;font-weight:700;transform:scale(1.06)}
@@ -232,11 +235,11 @@ h1{font-size:26px;font-weight:600;margin-bottom:8px}
 .agenda-cat{font-size:10px;padding:3px 9px;border-radius:20px;white-space:nowrap;background:var(--muted);color:var(--muted-fg);flex-shrink:0;font-weight:500}
 .agenda-cat-lavoro{background:hsl(39,81%,92%);color:hsl(39,81%,32%)}
 .agenda-cat-casa{background:hsl(204,60%,92%);color:hsl(204,60%,32%)}
-.agenda-cat-benessere{background:hsl(172,59%,91%);color:var(--primary)}
+.agenda-cat-benessere{background:var(--tint);color:var(--primary)}
 .agenda-cat-scuola{background:hsl(204,60%,92%);color:hsl(204,60%,32%)}
-.agenda-cat-focus{background:hsl(262,52%,93%);color:hsl(262,52%,40%)}
+.agenda-cat-focus{background:hsl(262,52%,93%);color:var(--primary-dark)}
 .agenda-cat-energia{background:hsl(28,80%,92%);color:hsl(28,80%,35%)}
-.agenda-cat-routine{background:hsl(172,59%,91%);color:var(--primary)}
+.agenda-cat-routine{background:var(--tint);color:var(--primary)}
 
 /* ===== AGENDA MICRO-STEPS ===== */
 .agenda-item{margin-bottom:8px}
@@ -274,7 +277,7 @@ h1{font-size:26px;font-weight:600;margin-bottom:8px}
 .btn:hover{background:var(--muted)}
 .btn:disabled{opacity:0.6;cursor:not-allowed}
 .btn-primary{background:var(--primary);color:#fff;border-color:var(--primary)}
-.btn-primary:hover:not(:disabled){background:hsl(172,59%,27%)}
+.btn-primary:hover:not(:disabled){background:var(--primary-dark)}
 .btn-adult{background:hsl(39,81%,58%);color:hsl(222,24%,14%);border-color:hsl(39,81%,50%)}
 .btn-adult:hover:not(:disabled){background:hsl(39,81%,50%)}
 .btn-row{display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap}
@@ -294,7 +297,7 @@ textarea:focus,select:focus,input:focus{border-color:var(--primary);box-shadow:0
 /* ===== THERAPIST PATIENT CARDS ===== */
 .patient-card{border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:10px;cursor:pointer;transition:border-color 0.15s}
 .patient-card:last-child{margin-bottom:0}
-.patient-card:hover{border-color:hsl(262,52%,55%)}
+.patient-card:hover{border-color:var(--primary)}
 .patient-card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:6px}
 .patient-name{font-weight:600;font-size:14px}
 .patient-last-checkin{font-size:11px;color:var(--muted-fg)}
@@ -401,7 +404,7 @@ textarea:focus,select:focus,input:focus{border-color:var(--primary);box-shadow:0
 /* ===== PROFILE PAGE ===== */
 .emoji-picker-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:8px}
 .emoji-option{border:2px solid var(--border);border-radius:12px;padding:10px 4px;cursor:pointer;text-align:center;font-size:26px;background:#fff;transition:border-color 0.15s,background 0.15s;line-height:1}
-.emoji-option:hover{border-color:var(--primary);background:hsl(172,59%,96%)}
+.emoji-option:hover{border-color:var(--primary);background:var(--tint-soft)}
 .emoji-option.selected{border-color:var(--primary);background:hsl(172,59%,93%)}
 #preview-avatar-icon{font-size:52px;line-height:1}
 
@@ -455,3 +458,155 @@ textarea:focus,select:focus,input:focus{border-color:var(--primary);box-shadow:0
 .intro-btn{width:100%;padding:16px;border:none;border-radius:14px;background:hsl(0,0%,95%);font:inherit;font-size:17px;font-weight:600;cursor:pointer}
 .intro-btn:hover{background:hsl(0,0%,91%)}
 .intro-back{display:block;margin:12px auto 0;background:none;border:none;font:inherit;color:var(--muted-fg);cursor:pointer}
+
+.agenda-timer-btn{background:none;border:none;cursor:pointer;color:var(--muted-fg);font-size:18px;padding:4px;flex-shrink:0;display:flex;align-items:center}
+.agenda-timer-btn:hover{color:var(--primary)}
+
+/* Mini-timer accanto a ogni attività */
+.mini-timer{display:inline-flex;align-items:center;gap:4px;flex-shrink:0;margin:0 6px}
+.mini-timer-sel{font:inherit;font-size:12px;padding:3px 4px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--muted-fg);width:auto}
+.mini-timer-btn{background:none;border:none;cursor:pointer;color:var(--muted-fg);font-size:17px;padding:3px;display:flex;align-items:center}
+.mini-timer-btn:hover{color:var(--primary)}
+.mini-timer.active{background:hsl(172,59%,94%);border-radius:10px;padding:2px 6px}
+.mini-timer-display{font-variant-numeric:tabular-nums;font-size:13px;color:var(--primary)}
+
+/* Righe dell'agenda colorate per categoria */
+.agenda-row[class*="row-agenda-cat-"]{border-left:5px solid transparent}
+.agenda-row.row-agenda-cat-lavoro{background:hsl(39,81%,95%);border-left-color:hsl(39,81%,55%)}
+.agenda-row.row-agenda-cat-casa,.agenda-row.row-agenda-cat-scuola{background:hsl(204,60%,95%);border-left-color:hsl(204,60%,55%)}
+.agenda-row.row-agenda-cat-benessere,.agenda-row.row-agenda-cat-routine{background:hsl(172,59%,94%);border-left-color:hsl(172,59%,40%)}
+.agenda-row.row-agenda-cat-focus{background:hsl(262,52%,96%);border-left-color:hsl(262,52%,60%)}
+.agenda-row.row-agenda-cat-energia{background:hsl(28,80%,95%);border-left-color:hsl(28,80%,55%)}
+
+/* Contatore stelle nella barra in alto */
+.stars-chip{position:relative;display:flex;align-items:center;gap:12px;padding:5px 12px;border-radius:20px;background:hsl(45,95%,94%);border:1px solid hsl(45,80%,80%);cursor:pointer;font-size:14px;user-select:none}
+.stars-chip-item b{font-variant-numeric:tabular-nums}
+.stars-popover{display:none;position:absolute;top:44px;right:0;width:290px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.12);cursor:default;z-index:200}
+.stars-popover.open{display:block}
+
+.step-timer-row{display:flex;align-items:center;gap:10px;margin-top:12px;padding-top:10px;border-top:1px dashed var(--border)}
+.step-timer-label{font-size:13px;color:var(--muted-fg);display:inline-flex;align-items:center;gap:6px}
+.step-timer-row .mini-timer{margin:0}
+.mini-timer-badge{display:inline-flex;align-items:center;gap:4px;flex-shrink:0;font-size:12px;color:var(--primary);background:hsl(172,59%,94%);padding:3px 8px;border-radius:10px;margin:0 6px}
+
+.agenda-cat-tempolibero{background:hsl(330,70%,93%);color:hsl(330,60%,35%)}
+.agenda-row.row-agenda-cat-tempolibero{background:hsl(330,70%,96%);border-left-color:hsl(330,60%,60%)}
+
+.cal-add-btn{width:36px;height:36px;border-radius:50%;border:none;background:var(--primary);color:#fff;font-size:20px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.cal-add-btn:hover{filter:brightness(1.08)}
+
+.calendario-month-mood{font-style:normal;font-size:16px;line-height:1}
+.calendario-month-day:has(.calendario-month-mood) .calendario-month-dot{bottom:3px;right:6px;left:auto}
+
+/* Domande del Diario */
+#dq-card{max-width:none}
+.dq-progress{height:6px;background:var(--muted,#eee);border-radius:99px;overflow:hidden;margin-bottom:14px}
+.dq-progress-fill{height:100%;width:0;background:var(--primary,#6c63ff);border-radius:99px;transition:width .3s}
+.dq-topic{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-fg);margin-bottom:6px}
+.dq-options{display:flex;flex-direction:column;gap:8px;margin:14px 0}
+.dq-option{text-align:left;padding:12px 14px;border:1.5px solid var(--border,#ddd);border-radius:12px;background:transparent;color:inherit;font:inherit;cursor:pointer}
+.dq-option:hover{border-color:var(--primary,#6c63ff)}
+.dq-option.selected{border-color:var(--primary,#6c63ff);background:rgba(108,99,255,.12);font-weight:600}
+.dq-nav{display:flex;justify-content:space-between;gap:8px}
+.dq-recap-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:7px 0;border-bottom:1px solid var(--border,#eee);font-size:14px}
+.dq-recap-q{color:var(--muted-fg);flex:0 0 38%}
+.dq-recap-a{font-weight:600;text-align:right}
+.dq-recap-a small{display:block;font-weight:400;font-size:12px;color:var(--muted-fg)}
+
+/* Profilo in stile app */
+.prof-wrap{max-width:460px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.prof-avatar-card{text-align:center}
+.prof-hello{font-size:22px;font-weight:700;margin-bottom:10px}
+.prof-change-btn{margin:0 auto}
+.prof-picker{display:none;margin-top:16px}
+.prof-picker.open{display:grid}
+.prof-hidden{display:none !important}
+.pn-row{display:flex;align-items:center;gap:10px;margin:10px 0;font-weight:400;cursor:pointer}.pn-row input{width:18px;height:18px;flex:none}
+
+/* Area tutor semplificata */
+.t-chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px}
+.t-chip{background:var(--card,#fff);border:1px solid var(--border);border-radius:99px;padding:6px 14px;font-size:14px}
+.t-chip-warn{background:hsl(39,90%,94%);border-color:hsl(39,70%,80%)}
+.t-user{display:flex;align-items:center;gap:14px}
+.t-avatar{width:44px;height:44px;border-radius:50%;background:var(--tint);color:var(--primary-dark);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;flex:none}
+.t-user-main{flex:1;min-width:0}
+.t-status{display:flex;align-items:center;gap:6px;font-size:13px;margin-top:3px}
+.t-dot{width:9px;height:9px;border-radius:50%;background:var(--muted-fg)}
+.t-ok{color:var(--primary)}.t-ok .t-dot{background:var(--primary)}
+.t-warn{color:hsl(39,81%,38%)}.t-warn .t-dot{background:hsl(39,81%,50%)}
+.t-idle{color:var(--muted-fg)}
+.t-review{margin-top:5px;font-size:12px;color:var(--primary-dark)}
+.t-chev{color:var(--muted-fg);font-size:20px}
+
+/* Pagina utente vista dal tutor */
+.tc-panel{display:none}.tc-panel.active{display:block}
+.tc-tabs{margin:10px 0 16px}
+.tc-contacts{margin:-4px 0 6px;font-size:14px;color:var(--muted-fg)}
+.tc-contacts summary{cursor:pointer;margin-bottom:6px}
+.week-chart{display:none !important}
+
+.tq-day{border-bottom:1px solid var(--border);padding:8px 0}.tq-day summary{cursor:pointer;font-weight:600;text-transform:capitalize}
+
+/* ===== STILE UNIFORME (vale per tutte le pagine e tutti i ruoli) ===== */
+body[data-page]{--page-a:hsl(165,45%,96%);--page-b:hsl(170,40%,92%)}
+.main{max-width:760px}
+h1{font-size:26px;font-weight:700;margin-bottom:14px}
+.card{border-radius:16px;padding:20px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+.card+.card{margin-top:14px}
+.card-title{font-size:16px;font-weight:600;margin-bottom:10px}
+.card-desc{font-size:13px}
+.btn{border-radius:10px;padding:10px 18px;font-size:14px}
+.page .card{max-width:none}
+.patient-card:hover{border-color:var(--primary)}
+.t-user .patient-name,.patient-name{font-weight:600}
+
+/* ===== COLORE PER PROFILO (utente = verde acqua, tutor = viola, genitore = arancio) ===== */
+body[data-role="therapist"]{--primary:hsl(262,52%,52%);--primary-dark:hsl(262,52%,40%);--tint:hsl(262,52%,92%);--tint-soft:hsl(262,52%,97%)}
+body[data-role="therapist"][data-page]{--page-a:hsl(255,60%,96%);--page-b:hsl(262,52%,92%)}
+body[data-role="parent"]{--primary:hsl(24,80%,48%);--primary-dark:hsl(24,80%,38%);--tint:hsl(28,85%,92%);--tint-soft:hsl(28,85%,96%)}
+body[data-role="parent"][data-page]{--page-a:hsl(32,80%,96%);--page-b:hsl(26,75%,91%)}
+.t-dot{display:none}
+
+/* ===== PIÙ PULITO: meno bordi, più aria, ombre leggere ===== */
+.card{border:none;box-shadow:0 1px 3px rgba(20,30,40,.06);padding:22px}
+.card+.card{margin-top:16px}
+.card-title{margin-bottom:12px}
+.main{padding-top:32px}
+h1{margin-bottom:18px}
+.activity-row,.diary-row,.patient-card{border:none;background:hsl(210,22%,97%);border-radius:12px}
+.activity-row:hover,.patient-card:hover{background:hsl(210,22%,94%)}
+.patient-card{padding:14px 16px}
+.diary-note{border-top:none;padding-top:0}
+.sidebar-footer{border:none;background:transparent;padding:12px 4px;font-size:11px;opacity:.8}
+.sidebar-badge{border:none;background:var(--muted)}
+.nav-item{padding:9px 10px}
+.nav-item.active{box-shadow:none;background:var(--tint)}
+.subtab-bar{border-bottom-color:transparent;gap:22px}
+.subtab-btn{padding-bottom:8px}
+.account-bar{border-bottom:none;box-shadow:0 1px 3px rgba(20,30,40,.06)}
+.t-chip{border:none;box-shadow:0 1px 3px rgba(20,30,40,.06)}
+.dq-recap-row,.tq-day{border-bottom-color:hsl(210,22%,94%)}
+.dq-option{border-width:1px}
+.empty-hint{color:var(--muted-fg);font-size:14px;padding:6px 0}
+
+/* ===== TELEFONO: l'app nasce per il cellulare (questo blocco deve restare in fondo) ===== */
+@media(max-width:768px){
+  .main{padding:16px 14px calc(88px + env(safe-area-inset-bottom));max-width:none}
+  h1{font-size:22px;margin-bottom:14px}
+  .card{padding:16px;border-radius:16px}
+  .card+.card{margin-top:12px}
+  .btn{min-height:44px;justify-content:center}
+  input,select,textarea{font-size:16px}
+  .subtab-bar{overflow-x:auto;flex-wrap:nowrap;gap:18px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .subtab-bar::-webkit-scrollbar{display:none}
+  .subtab-btn{white-space:nowrap;padding:10px 2px;font-size:14px;flex:none}
+  .dq-option{padding:14px}
+  .patient-card,.activity-row{padding:14px}
+  .t-chips{gap:6px}
+  .t-chip{font-size:13px;padding:6px 12px}
+  .agenda-add-form .field,.agenda-add-form .field-time,.agenda-add-form .field-cat,.agenda-add-form .field-title{width:100%;min-width:0;flex:1 1 100%}
+  .agenda-add-form button{width:100%;height:44px}
+  .btn-row{margin-bottom:16px}
+  .prof-wrap{max-width:none}
+  .account-bar-name{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
