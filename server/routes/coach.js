@@ -1,11 +1,11 @@
-const express = require('express');
 const db = require('../db');
 const { requireAuth, requireRole } = require('../middleware');
+const { Router } = require('../helpers');
 const coach = require('../coach-engine');
 
-const router = express.Router();
+const router = Router();
 
-router.post('/ask', requireAuth, requireRole('patient'), (req, res) => {
+router.post('/ask', requireAuth, requireRole('patient'), async (req, res) => {
   const { message, area, energy } = req.body || {};
   if (!message || !message.trim()) return res.status(400).json({ error: 'Scrivi un messaggio per il coach.' });
 
@@ -19,7 +19,7 @@ router.post('/ask', requireAuth, requireRole('patient'), (req, res) => {
     : coach.inferCategory(normalized, area);
 
   const priorForCategory = resolvedCategory
-    ? db.prepare('SELECT COUNT(*) as c FROM coach_logs WHERE user_id = ? AND category = ?').get(req.user.id, resolvedCategory).c
+    ? (await db.get('SELECT COUNT(*) as c FROM coach_logs WHERE user_id = ? AND category = ?', req.user.id, resolvedCategory)).c
     : 0;
 
   const result = coach.respond({ message, area: resolvedCategory || area, energy, usageCount: priorForCategory });
@@ -28,8 +28,7 @@ router.post('/ask', requireAuth, requireRole('patient'), (req, res) => {
   // dal paziente: è il modo in cui teniamo la conversazione col coach privata
   // anche dal terapeuta, mostrando eventualmente solo "quante volte" e "che
   // tipo" di aiuto è stato chiesto, non il contenuto.
-  db.prepare('INSERT INTO coach_logs (user_id, category, blocked) VALUES (?, ?, ?)')
-    .run(req.user.id, result.category, result.blocked ? 1 : 0);
+  await db.run('INSERT INTO coach_logs (user_id, category, blocked) VALUES (?, ?, ?)', req.user.id, result.category, result.blocked ? 1 : 0);
 
   res.json(result);
 });

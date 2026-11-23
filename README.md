@@ -11,8 +11,9 @@ pazienti e terapeuti.
   Qui è scritto in Node.js (un modo di far girare JavaScript fuori dal
   browser) e si trova nella cartella `server/`.
 - **Database**: il posto dove i dati restano salvati davvero (non in memoria).
-  Qui usiamo SQLite: un database che è semplicemente un file
-  (`server/data/app.sqlite`), niente da installare a parte.
+  Qui usiamo **PostgreSQL**, un database vero che gira su un server a parte
+  (non un file). L'app si collega tramite le variabili `PG*` (vedi sotto) e lo
+  schema è creato automaticamente all'avvio dai file in `server/migrations/`.
 - **API**: l'insieme di "indirizzi" (es. `/api/agenda`) attraverso cui il
   frontend (quello che vedi nel browser) chiede o invia dati al server.
 - **Frontend**: i file in `public/` — quello che vedi e con cui interagisci
@@ -20,37 +21,64 @@ pazienti e terapeuti.
 
 ## Come provarla sul tuo computer
 
-1. Installa **Node.js** (una volta sola): vai su https://nodejs.org e scarica
-   la versione "LTS". È un programma gratuito, si installa come qualunque
-   altra applicazione.
-2. Apri il Terminale, spostati nella cartella di questo progetto
-   (`adhd-coach-app`) ed esegui:
+1. Installa **Node.js 20.x** (una volta sola): https://nodejs.org, versione
+   "LTS". Serve anche l'accesso a un database PostgreSQL (vedi punto 3).
+2. Nel Terminale, nella cartella del progetto, esegui:
    ```
    npm install
    ```
-   Questo scarica le "librerie" (pezzi di codice già pronti, tipo il
-   database o la gestione delle password) di cui il progetto ha bisogno.
-   Va fatto una volta sola (o di nuovo se cambiamo le dipendenze).
-3. Avvia il server:
+   (una volta sola, o di nuovo se cambiano le dipendenze).
+3. **Configura la connessione al database.** Copia `.env.example` in `.env`
+   (non viene mai committato) e compila i valori: `PGHOST`, `PGPORT`,
+   `PGDATABASE`, `PGUSER`, `DB_SSL`, ecc. La password è meglio non scriverla
+   nel file: esportala nella shell prima di avviare l'app:
+   ```
+   read -rs PGPASSWORD; export PGPASSWORD
+   ```
+   Il database deve essere raggiungibile dal tuo computer (rete interna/VPN).
+   Per un Postgres locale di sviluppo usa `DB_SSL=disable`.
+4. Avvia il server:
    ```
    npm start
    ```
-   Se tutto va bene, vedrai scritto `ADHD Coach in ascolto su
-   http://localhost:3000`.
-4. Apri quell'indirizzo nel browser: `http://localhost:3000`.
-5. Crea un account terapeuta e un account paziente (con due email diverse)
-   per provare il flusso completo, oppure lancia prima:
+   Al primo avvio applica le migrazioni (`Migrazione applicata: 001_init.sql`)
+   e poi scrive `ADHD Coach in ascolto su http://localhost:3000`. Se il
+   database non è raggiungibile il server non parte e indica host, database e
+   utente usati (mai la password).
+5. Apri `http://localhost:3000` e crea un account tutor e uno utente (con due
+   email diverse), oppure lancia prima:
    ```
    npm run seed
    ```
-   per creare 3 terapeuti demo (email `demo.calvo@example.com`, ecc.,
-   password `DemoPass123`) così la schermata "scegli il tuo terapeuta" non è
-   vuota.
+   per creare 3 tutor demo (`demo.calvo@example.com`, ecc., password
+   `DemoPass123`). Il seed e la demo si rifiutano di partire con
+   `NODE_ENV=production`.
 
-Se `npm install` desse un errore relativo a "better-sqlite3" o a
-compilazione, quasi sempre basta installare gli "Xcode Command Line Tools"
-(su Mac: `xcode-select --install` nel Terminale, è gratuito e richiede pochi
-minuti) e riprovare.
+   Per una copia di prova con un utente adolescente già pronto, su un
+   database SEPARATO: `DEMO_PGDATABASE=adhd_demo npm run demo`
+   (porta 3001, `teen@demo.it` / `tutor@demo.it`, password `DemoPass123`).
+
+### Variabili d'ambiente importanti
+
+- `JWT_SECRET`: **obbligatoria in produzione** (almeno 32 caratteri casuali);
+  con `NODE_ENV=production` e il valore mancante il server non parte. In
+  sviluppo, se manca, usa una chiave locale e lo segnala.
+- `DB_SSL`: `require` (default, TLS senza verifica del certificato),
+  `verify` (con `DB_SSL_CA`) o `disable` (solo Postgres locale).
+- `AZURE_STORAGE_ACCOUNT` (o `AZURE_STORAGE_CONNECTION_STRING`) e
+  `AZURE_STORAGE_CONTAINER`: dove vanno foto profilo e CV dei tutor (Azure Blob
+  Storage, contenitore privato da creare in anticipo; con l'identità gestita
+  serve il ruolo "Storage Blob Data Contributor"). Il disco del container non
+  si usa perché si azzera a ogni riavvio. In produzione il server non parte se
+  mancano; in sviluppo, senza, i file vanno in `server/data/files/`.
+- `ADMIN_EMAIL`, `APP_BASE_URL`, `BREVO_API_KEY`, ecc.: vedi `.env.example`.
+
+### Migrazioni del database
+
+Gli aggiornamenti dello schema sono file numerati in `server/migrations/`
+(`001_init.sql`, `002_...sql`). All'avvio viene applicato ogni file mancante,
+una sola volta e in ordine, dentro una transazione. Per cambiare lo schema si
+**aggiunge un nuovo file**, senza modificare quelli già applicati.
 
 ## Cosa NON è ancora pronto per un vero rilascio pubblico
 
@@ -70,8 +98,9 @@ reali, servono ancora, in ordine di importanza:
    valutazione legale su conservazione dati, consenso informato, e
    eventuali obblighi ulteriori.
 4. **Email reali**: oggi non c'è verifica email né recupero password.
-5. **Backup del database**: il file SQLite andrebbe copiato regolarmente da
-   qualche parte al sicuro.
+5. **Backup del database**: pianificare backup regolari di PostgreSQL
+   (es. `pg_dump` o i backup gestiti del servizio che lo ospita) e provare
+   ogni tanto a ripristinarli.
 
 Sono felice di continuare su uno qualsiasi di questi punti quando siete
 pronti.

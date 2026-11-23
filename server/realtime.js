@@ -13,11 +13,10 @@
 // tempo chiude la chiamata per tutti e due, così il limite non dipende da un
 // timer solo nel browser che si potrebbe manomettere o disattivare.
 const { WebSocketServer } = require('ws');
-const jwt = require('jsonwebtoken');
 const db = require('./db');
+const { verifyToken, COOKIE_NAME } = require('./auth-utils');
+const testGate = require('./test-gate');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'CAMBIA-QUESTA-CHIAVE-PRIMA-DI-DISTRIBUIRE-DAVVERO';
-const COOKIE_NAME = 'adhd_coach_token';
 const CALL_DURATION_MS = 15 * 60 * 1000;
 
 function readTokenFromCookieHeader(header) {
@@ -26,7 +25,7 @@ function readTokenFromCookieHeader(header) {
     const idx = part.indexOf('=');
     if (idx === -1) continue;
     if (part.slice(0, idx) === COOKIE_NAME) {
-      try { return jwt.verify(decodeURIComponent(part.slice(idx + 1)), JWT_SECRET); } catch (e) { return null; }
+      try { return verifyToken(decodeURIComponent(part.slice(idx + 1))); } catch (e) { return null; }
     }
   }
   return null;
@@ -58,14 +57,25 @@ function closeRoom(slotId) {
 function attach(server) {
   const wss = new WebSocketServer({ server, path: '/ws/review' });
 
-  wss.on('connection', (ws, req) => {
+  wss.on('connection', async (ws, req) => {
     const url = new URL(req.url, 'http://localhost');
     const slotId = Number(url.searchParams.get('slotId'));
+    // In TEST_MODE anche la videochiamata richiede l'accesso di prova (il
+    // WebSocket non passa dai middleware Express, quindi lo controlliamo qui).
+    if (!testGate.allowsCookieHeader(req.headers.cookie)) { ws.close(4001, 'Accesso di prova richiesto'); return; }
     const payload = readTokenFromCookieHeader(req.headers.cookie);
     if (!payload || !slotId) { ws.close(4001, 'Non autenticato'); return; }
 
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(payload.id);
-    const slot = db.prepare('SELECT * FROM review_slots WHERE id = ?').get(slotId);
+    let user, slot;
+    try {
+      user = await db.get('SELECT * FROM users WHERE id = ?', payload.id);
+      slot = await db.get('SELECT * FROM review_slots WHERE id = ?', slotId);
+    } catch (e) {
+      console.error('Videochiamata: errore database', e.message);
+      ws.close(1011, 'Errore interno');
+      return;
+    }
+    if (ws.readyState !== ws.OPEN) return; // il client se n'è andato mentre aspettavamo il database
     if (!user || !slot || slot.status !== 'confirmed') { ws.close(4004, 'Revisione non trovata o non confermata'); return; }
     const belongs = (user.role === 'patient' && user.id === slot.patient_id) || (user.role === 'therapist' && user.id === slot.therapist_id);
     if (!belongs) { ws.close(4003, 'Non autorizzato a entrare in questa revisione'); return; }

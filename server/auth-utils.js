@@ -13,9 +13,22 @@
 //   tramite script malevoli).
 const jwt = require('jsonwebtoken');
 
-// In produzione questa chiave deve arrivare da una variabile d'ambiente
-// (impostabile sul servizio di hosting), non stare scritta nel codice.
-const JWT_SECRET = process.env.JWT_SECRET || 'CAMBIA-QUESTA-CHIAVE-PRIMA-DI-DISTRIBUIRE-DAVVERO';
+// La chiave arriva SEMPRE da una variabile d'ambiente. In produzione, se manca
+// (o è troppo corta), il server non parte: con una chiave di ripiego nota i
+// token sarebbero falsificabili. Solo in sviluppo si usa una chiave locale.
+// Questo è l'unico punto in cui viene letta (la usa anche realtime.js).
+const DEV_FALLBACK_SECRET = 'solo-sviluppo-locale-non-usare-in-produzione';
+// Sulla Container App la chiave è il secret "session-secret", esposto come
+// SESSION_SECRET: lo accettiamo come alternativa a JWT_SECRET.
+let JWT_SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET;
+if (process.env.NODE_ENV === 'production') {
+  if (!JWT_SECRET || JWT_SECRET.length < 32) {
+    throw new Error('JWT_SECRET mancante o troppo corta (minimo 32 caratteri): impostala nelle variabili d\'ambiente.');
+  }
+} else if (!JWT_SECRET) {
+  JWT_SECRET = DEV_FALLBACK_SECRET;
+  console.warn('Attenzione: JWT_SECRET non impostata, uso una chiave di sviluppo. Non usare così in produzione.');
+}
 const COOKIE_NAME = 'adhd_coach_token';
 const TOKEN_TTL = '30d';
 
@@ -48,4 +61,9 @@ function readToken(req) {
   }
 }
 
-module.exports = { signToken, setAuthCookie, clearAuthCookie, readToken, COOKIE_NAME };
+// Verifica un token grezzo (usata anche dal WebSocket della videochiamata).
+function verifyToken(raw) {
+  try { return jwt.verify(raw, JWT_SECRET); } catch (e) { return null; }
+}
+
+module.exports = { signToken, setAuthCookie, clearAuthCookie, readToken, verifyToken, COOKIE_NAME };

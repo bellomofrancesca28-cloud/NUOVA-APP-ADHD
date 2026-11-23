@@ -2,19 +2,18 @@
 // Stesso principio del collegamento paziente-terapeuta: il paziente (qui,
 // potenzialmente minorenne) genera un codice, il genitore lo inserisce una
 // sola volta e da quel momento può vedere i dati condivisi di quel figlio/a.
-const express = require('express');
 const db = require('../db');
 const { requireAuth, requireRole } = require('../middleware');
-const { publicUser, todayStr, generateLinkCode } = require('../helpers');
+const { publicUser, todayStr, generateLinkCode, Router } = require('../helpers');
 const stats = require('../stats-engine');
 const { computeStars } = require('../stars');
 
-const router = express.Router();
+const router = Router();
 
 // Il paziente genera (o rigenera) il proprio codice da condividere con un genitore.
-router.post('/code', requireAuth, requireRole('patient'), (req, res) => {
-  const code = generateLinkCode(db);
-  db.prepare('UPDATE users SET link_code = ? WHERE id = ?').run(code, req.user.id);
+router.post('/code', requireAuth, requireRole('patient'), async (req, res) => {
+  const code = await generateLinkCode(db);
+  await db.run('UPDATE users SET link_code = ? WHERE id = ?', code, req.user.id);
   res.json({ code });
 });
 
@@ -24,68 +23,68 @@ router.post('/code', requireAuth, requireRole('patient'), (req, res) => {
 // possono collegarsi allo stesso account.
 const MAX_PARENTS_PER_CHILD = 2;
 
-router.post('/link', requireAuth, requireRole('parent'), (req, res) => {
+router.post('/link', requireAuth, requireRole('parent'), async (req, res) => {
   const code = ((req.body && req.body.code) || '').toUpperCase().trim();
   if (!code) return res.status(400).json({ error: 'Inserisci il codice.' });
 
-  const child = db.prepare('SELECT * FROM users WHERE link_code = ? AND role = \'patient\'').get(code);
+  const child = await db.get('SELECT * FROM users WHERE link_code = ? AND role = \'patient\'', code);
   if (!child) return res.status(404).json({ error: 'Codice non valido. Chiedi al tutor che segue tuo figlio/a di darti il codice corretto.' });
 
-  const alreadyMe = db.prepare('SELECT * FROM parent_child WHERE parent_id = ? AND child_id = ?').get(req.user.id, child.id);
+  const alreadyMe = await db.get('SELECT * FROM parent_child WHERE parent_id = ? AND child_id = ?', req.user.id, child.id);
   if (alreadyMe) return res.status(409).json({ error: 'Sei già collegato a questo account.' });
 
-  const parentsCount = db.prepare('SELECT COUNT(*) as c FROM parent_child WHERE child_id = ?').get(child.id).c;
+  const parentsCount = (await db.get('SELECT COUNT(*) as c FROM parent_child WHERE child_id = ?', child.id)).c;
   if (parentsCount >= MAX_PARENTS_PER_CHILD) {
     return res.status(409).json({ error: 'Questo account è già collegato al numero massimo di genitori.' });
   }
 
-  db.prepare('INSERT INTO parent_child (parent_id, child_id) VALUES (?, ?)').run(req.user.id, child.id);
+  await db.run('INSERT INTO parent_child (parent_id, child_id) VALUES (?, ?)', req.user.id, child.id);
   res.json({ child: publicUser(child) });
 });
 
 // Elenco figli collegati al genitore loggato.
-router.get('/children', requireAuth, requireRole('parent'), (req, res) => {
-  const children = db.prepare(`
+router.get('/children', requireAuth, requireRole('parent'), async (req, res) => {
+  const children = await db.all(`
     SELECT u.id, u.name, u.nickname, u.avatar, u.age_group
     FROM parent_child pc JOIN users u ON u.id = pc.child_id
     WHERE pc.parent_id = ?
     ORDER BY u.name ASC
-  `).all(req.user.id);
+  `, req.user.id);
   res.json({ children });
 });
 
-function ownsChild(parentId, childId) {
-  return db.prepare('SELECT * FROM parent_child WHERE parent_id = ? AND child_id = ?').get(parentId, childId);
+async function ownsChild(parentId, childId) {
+  return db.get('SELECT * FROM parent_child WHERE parent_id = ? AND child_id = ?', parentId, childId);
 }
 
 // Vista completa (in sola lettura) di un figlio/a collegato: agenda di oggi,
 // check-in recenti, statistiche e stelle. Le note scritte al tutor restano private.
-router.get('/children/:id/overview', requireAuth, requireRole('parent'), (req, res) => {
+router.get('/children/:id/overview', requireAuth, requireRole('parent'), async (req, res) => {
   const childId = Number(req.params.id);
-  if (!ownsChild(req.user.id, childId)) {
+  if (!await ownsChild(req.user.id, childId)) {
     return res.status(403).json({ error: 'Non sei collegato a questo account.' });
   }
-  const child = db.prepare('SELECT * FROM users WHERE id = ?').get(childId);
+  const child = await db.get('SELECT * FROM users WHERE id = ?', childId);
   if (!child) return res.status(404).json({ error: 'Account non trovato.' });
 
   const today = todayStr();
-  const agenda = db.prepare('SELECT * FROM agenda_items WHERE user_id = ? AND item_date = ? ORDER BY time ASC').all(childId, today);
-  const checkins = db.prepare('SELECT * FROM checkins WHERE user_id = ? ORDER BY created_at DESC LIMIT 10').all(childId);
-  const summary = stats.fullSummary(child);
+  const agenda = await db.all('SELECT * FROM agenda_items WHERE user_id = ? AND item_date = ? ORDER BY time ASC', childId, today);
+  const checkins = await db.all('SELECT * FROM checkins WHERE user_id = ? ORDER BY created_at DESC LIMIT 10', childId);
+  const summary = await stats.fullSummary(child);
 
-  const therapistLink = db.prepare(`
+  const therapistLink = await db.get(`
     SELECT pt.*, u.name as therapist_name, u.avatar as therapist_avatar, u.avatar_photo as therapist_photo,
            u.specialty as therapist_specialty, u.bio as therapist_bio, u.order_number as therapist_order_number, u.email as therapist_email
     FROM patient_therapist pt JOIN users u ON u.id = pt.therapist_id
     WHERE pt.patient_id = ? AND pt.status = 'active'
-  `).get(childId);
+  `, childId);
 
   res.json({
     child: { id: child.id, name: child.name, nickname: child.nickname, avatar: child.avatar, age_group: child.age_group },
     agenda,
     checkins,
     summary,
-    stars: computeStars(childId),
+    stars: await computeStars(childId),
     therapistLink: therapistLink || null,
   });
 });
