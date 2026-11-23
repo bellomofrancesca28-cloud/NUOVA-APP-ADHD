@@ -31,8 +31,9 @@ const LOCAL_DIR = path.join(__dirname, 'data', 'files');
 
 const useAzure = !!(process.env.AZURE_STORAGE_CONNECTION_STRING || process.env.AZURE_STORAGE_ACCOUNT);
 
+// TEMPORANEO: rimettere il throw quando lo storage Azure è configurato
 if (!useAzure && process.env.NODE_ENV === 'production') {
-  throw new Error('Archiviazione file non configurata: imposta AZURE_STORAGE_ACCOUNT (o AZURE_STORAGE_CONNECTION_STRING).');
+  console.warn('Attenzione: archiviazione file non configurata, uso il disco locale (temporaneo, i file si perdono al riavvio).');
 }
 
 // Accettiamo solo chiavi del tipo "cartella/nomefile.ext" fatte di caratteri

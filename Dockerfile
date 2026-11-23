@@ -13,16 +13,14 @@ RUN npm ci --omit=dev && npm cache clean --force
 COPY public ./public
 COPY server ./server
 
-# L'app non scrive file sul disco del container: foto profilo e CV dei tutor
-# vanno in Azure Blob Storage (vedi server/storage.js).
-
-# La Container App espone la porta 80 (PORT=80, ingress targetPort 80). Un
-# utente non root normalmente non può aprire porte < 1024: diamo al solo
-# eseguibile di Node il permesso specifico per farlo, invece di girare come root.
-RUN apk add --no-cache libcap \
- && setcap cap_net_bind_service=+ep "$(readlink -f /usr/local/bin/node)" \
- && apk del libcap
+# Foto profilo e CV dei tutor vanno in Azure Blob Storage (vedi server/storage.js).
+# Finché lo storage non è configurato l'app usa il disco locale (server/data/files,
+# temporaneo: i file si perdono al riavvio): la cartella deve esistere ed essere
+# scrivibile dall'utente non root con cui gira il processo.
+RUN mkdir -p server/data/files/avatars server/data/files/cv \
+ && chown -R node:node server/data
 
 USER node
-EXPOSE 80
+# La Container App usa PORT=3000 (ingress targetPort 3000); l'app ascolta su PORT.
+EXPOSE 3000
 CMD ["node", "server/index.js"]
