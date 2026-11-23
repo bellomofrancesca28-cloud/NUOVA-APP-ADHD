@@ -17,7 +17,13 @@ COPY server ./server
 # Finché lo storage non è configurato l'app usa il disco locale (server/data/files,
 # temporaneo: i file si perdono al riavvio): la cartella deve esistere ed essere
 # scrivibile dall'utente non root con cui gira il processo.
-RUN mkdir -p server/data/files/avatars server/data/files/cv \
+# I file vengono copiati con i permessi che hanno sul computer da cui parte la
+# build: se uno fosse 600, l'utente node non potrebbe leggerlo e l'app non
+# partirebbe. Rendiamo tutto il codice leggibile (file) e attraversabile
+# (cartelle) da tutti; resta di proprietà di root, quindi non modificabile
+# dal processo dell'app.
+RUN chmod -R a+rX /app \
+ && mkdir -p server/data/files/avatars server/data/files/cv \
  && chown -R node:node server/data
 
 USER node
