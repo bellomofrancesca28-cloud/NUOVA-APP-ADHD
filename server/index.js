@@ -29,6 +29,10 @@ const app = express();
 // database era raggiungibile.
 app.get('/healthz', (req, res) => res.sendStatus(200));
 
+// Header di sicurezza (helmet), trust proxy e limiti ai tentativi: vedi server/security.js.
+const security = require('./security');
+security.applySecurity(app);
+
 app.use(cookieParser());
 
 // Modalità di test (TEST_MODE): se attiva, chiede nome utente e password di
@@ -40,6 +44,10 @@ app.use(require('./test-gate').middleware());
 // base64 dentro il corpo JSON, quindi devono poter passare richieste più
 // grandi (vedi server/routes/profile.js, rotta PUT /photo).
 app.use(express.json({ limit: '5mb' }));
+
+// Limiti ai tentativi (dopo il parsing del corpo: il limite per account legge l'email).
+app.post('/api/auth/login', ...security.loginLimiters);
+app.post('/api/auth/register', security.registerLimiter);
 
 // Foto profilo: stanno nello storage (non sul disco), quindi le serviamo da qui
 // PRIMA dei file statici. I nomi file sono univoci per ogni caricamento, quindi

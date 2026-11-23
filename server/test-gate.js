@@ -95,12 +95,12 @@ function allowsCookieHeader(header) {
 const MAX_FAILS = 10;
 const WINDOW_MS = 15 * 60 * 1000;
 const fails = new Map();
-// Usiamo l'ULTIMO indirizzo di X-Forwarded-For, cioè quello aggiunto dal proxy
-// davanti all'app (ingress di Azure): i primi valori li può inventare il client,
-// e userli permetterebbe di aggirare il limite cambiando l'header a ogni tentativo.
+// Indirizzo del client secondo la configurazione "trust proxy" di Express
+// (vedi security.js e la variabile TRUST_PROXY_HOPS): stesso criterio usato
+// per i limiti sul login. Gli indirizzi più a sinistra di X-Forwarded-For li
+// può inventare il client, per questo si contano solo i proxy fidati.
 function clientIp(req) {
-  const parts = String(req.headers['x-forwarded-for'] || '').split(',').map(s => s.trim()).filter(Boolean);
-  return parts[parts.length - 1] || req.socket.remoteAddress || 'unknown';
+  return req.ip || req.socket.remoteAddress || 'unknown';
 }
 function tooManyFails(ip) {
   const f = fails.get(ip);
@@ -119,9 +119,15 @@ setInterval(() => {
 }, WINDOW_MS).unref();
 
 // Solo percorsi interni all'app ("/qualcosa"), mai URL verso altri siti.
+// Si rifiuta: "//host" (protocol-relative), "/\host" (i browser trattano "\"
+// come "/", quindi diventerebbe "//host"), qualunque "\" e i caratteri di
+// controllo (a capo, tab), usati per aggirare i filtri.
 function safeNext(value) {
   const v = typeof value === 'string' ? value : '/';
-  return /^\/(?!\/)/.test(v) && !v.startsWith(BASE) ? v : '/';
+  if (v.length > 2000) return '/';
+  if (!/^\/(?![\/\\])[^\\\x00-\x1f\x7f]*$/.test(v)) return '/';
+  if (v.startsWith(BASE)) return '/';
+  return v;
 }
 
 function escapeHtml(s) {
@@ -196,7 +202,7 @@ function middleware() {
     const user = USERS.get(name);
     if (!user || !checkPassword(user, password)) {
       recordFail(ip);
-      console.warn(`TEST MODE: accesso negato (utente "${name.slice(0, 40)}", ip ${ip})`);
+      console.warn(`TEST MODE: accesso negato (utente "${name.slice(0, 40)}", ip ${ip}, x-forwarded-for "${String(req.headers['x-forwarded-for'] || '').slice(0, 120)}")`);
       return res.status(401).send(page(next, 'Nome utente o password non corretti.'));
     }
     fails.delete(ip);
