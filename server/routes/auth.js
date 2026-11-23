@@ -1,22 +1,21 @@
-const express = require('express');
-const fs = require('fs');
-const path = require('path');
+const express = require('express'); // serve ancora per express.urlencoded
 const crypto = require('crypto');
-// Cartella PRIVATA (fuori da "public"): i CV non sono raggiungibili da nessun URL pubblico.
-const CV_DIR = path.join(__dirname, '..', 'data', 'cv');
+// I CV stanno nello storage PRIVATO (vedi server/storage.js): nessun URL pubblico,
+// si aprono solo dal link con token segreto dell'email di approvazione.
+const storage = require('../storage');
 const MAX_CV_BYTES = 3 * 1024 * 1024;
 const { sendMail } = require('../mailer');
 const bcrypt = require('bcryptjs');
 const db = require('../db');
 const { setAuthCookie, clearAuthCookie } = require('../auth-utils');
 const { requireAuth } = require('../middleware');
-const { ageGroupFromRange, publicUser } = require('../helpers');
+const { ageGroupFromRange, publicUser, Router } = require('../helpers');
 
-const router = express.Router();
+const router = Router();
 
 const VALID_AGE_RANGES = ['teen', 'adult']; // teen = 14-17, adult = >18 (solo pazienti)
 
-router.post('/register', (req, res) => {
+router.post('/register', async (req, res) => {
   const { email, password, role, name, ageRange, job, goal, bio, specialty, cvBase64, orderNumber } = req.body || {};
 
   if (!email || !password || !role || !name) {
@@ -72,7 +71,7 @@ router.post('/register', (req, res) => {
     if (cvBuffer.length > MAX_CV_BYTES) return res.status(400).json({ error: 'CV troppo grande: massimo 3MB.' });
   }
 
-  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email.toLowerCase().trim());
+  const existing = await db.get('SELECT id FROM users WHERE email = ?', email.toLowerCase().trim());
   if (existing) {
     return res.status(409).json({ error: 'Esiste già un account con questa email.' });
   }
@@ -80,36 +79,53 @@ router.post('/register', (req, res) => {
   const passwordHash = bcrypt.hashSync(password, 10);
   const ageGroup = role === 'patient' ? ageGroupFromRange(ageRange) : null;
 
-  const info = db.prepare(`
-    INSERT INTO users (email, password_hash, role, name, age_range, age_group, job, goal, bio, specialty, birth_date, phone)
-    VALUES (@email, @passwordHash, @role, @name, @ageRange, @ageGroup, @job, @goal, @bio, @specialty, @birthDate, @phone)
-  `).run({
-    email: email.toLowerCase().trim(),
-    passwordHash,
-    role,
-    name: name.trim(),
-    ageRange: role === 'patient' ? ageRange : null,
-    ageGroup,
-    job: job || null,
-    goal: goal || null,
-    bio: role === 'therapist' ? (bio || null) : null,
-    specialty: role === 'therapist' ? (specialty || null) : null,
-    birthDate,
-    phone,
-  });
+  // Tutor: nascono NON approvati, con token di approvazione, CV e numero d'albo
+  // già nello stesso INSERT, così non esiste mai un tutor "attivo per errore".
+  // Il CV su disco si scrive prima; se l'INSERT fallisce lo rimuoviamo.
+  const isTherapist = role === 'therapist';
+  const approvalToken = isTherapist ? crypto.randomBytes(24).toString('hex') : null;
+  const cvFile = isTherapist ? `${crypto.randomBytes(12).toString('hex')}.pdf` : null;
+  if (isTherapist) {
+    await storage.save(`cv/${cvFile}`, cvBuffer, 'application/pdf');
+  }
 
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
+  let user;
+  try {
+    user = await db.get(`
+      INSERT INTO users (email, password_hash, role, name, age_range, age_group, job, goal, bio, specialty, birth_date, phone,
+                         approved, approval_token, cv_file, order_number)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      RETURNING *
+    `,
+      email.toLowerCase().trim(),
+      passwordHash,
+      role,
+      name.trim(),
+      role === 'patient' ? ageRange : null,
+      ageGroup,
+      job || null,
+      goal || null,
+      isTherapist ? (bio || null) : null,
+      isTherapist ? (specialty || null) : null,
+      birthDate,
+      phone,
+      isTherapist ? 0 : 1,
+      approvalToken,
+      cvFile,
+      isTherapist ? orderNumber.trim() : null,
+    );
+  } catch (e) {
+    if (cvFile) await storage.remove(`cv/${cvFile}`);
+    // Due registrazioni quasi simultanee con la stessa email: il vincolo UNIQUE
+    // del database blocca la seconda (codice Postgres 23505).
+    if (e.code === '23505') return res.status(409).json({ error: 'Esiste già un account con questa email.' });
+    throw e;
+  }
 
-  // I tutor non diventano attivi subito: l'amministratrice riceve un'email
-  // con un link per approvare (o rifiutare) la richiesta. Finché non approva,
-  // l'account esiste ma non può accedere.
-  if (role === 'therapist') {
-    const token = crypto.randomBytes(24).toString('hex');
-    if (!fs.existsSync(CV_DIR)) fs.mkdirSync(CV_DIR, { recursive: true });
-    const cvFile = `${user.id}-${crypto.randomBytes(6).toString('hex')}.pdf`;
-    fs.writeFileSync(path.join(CV_DIR, cvFile), cvBuffer);
-    db.prepare('UPDATE users SET approved = 0, approval_token = ?, cv_file = ?, order_number = ? WHERE id = ?').run(token, cvFile, orderNumber.trim(), user.id);
-    user.order_number = orderNumber.trim();
+  // L'amministratrice riceve un'email con un link per approvare (o rifiutare)
+  // la richiesta. Finché non approva, l'account esiste ma non può accedere.
+  if (isTherapist) {
+    const token = approvalToken;
     const base = process.env.APP_BASE_URL || `${req.get('x-forwarded-proto') || req.protocol}://${req.get('host')}`;
     const link = `${base}/api/auth/approve-tutor?token=${token}`;
     console.log('\n>>> LINK PER APPROVARE IL TUTOR:', link, '\n');
@@ -134,16 +150,16 @@ function escapeHtml(s) {
 function simplePage(title, body) {
   return `<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title></head><body style="font-family:system-ui,sans-serif;max-width:480px;margin:60px auto;padding:0 20px;line-height:1.5"><h2>${title}</h2>${body}</body></html>`;
 }
-function pendingTutorByToken(token) {
+async function pendingTutorByToken(token) {
   if (!token || typeof token !== 'string') return null;
-  return db.prepare('SELECT * FROM users WHERE approval_token = ? AND role = \'therapist\' AND approved = 0').get(token);
+  return db.get('SELECT * FROM users WHERE approval_token = ? AND role = \'therapist\' AND approved = 0', token);
 }
 
 // Pagina aperta dal link nell'email: mostra i dati e due pulsanti. Approvare
 // avviene solo col click sul pulsante (POST), così un programma che "apre in
 // anteprima" i link delle email non approva per errore.
-router.get('/approve-tutor', (req, res) => {
-  const tutor = pendingTutorByToken(req.query.token);
+router.get('/approve-tutor', async (req, res) => {
+  const tutor = await pendingTutorByToken(req.query.token);
   if (!tutor) return res.status(404).send(simplePage('Link non valido', '<p>Questa richiesta non esiste più o è già stata gestita.</p>'));
   res.send(simplePage('Richiesta account Tutor', `
     <p><b>${escapeHtml(tutor.name)}</b><br>${escapeHtml(tutor.email)}<br><i>${escapeHtml(tutor.specialty || '')}</i><br>N. iscrizione all'ordine: <b>${escapeHtml(tutor.order_number || '-')}</b></p>
@@ -157,17 +173,23 @@ router.get('/approve-tutor', (req, res) => {
 });
 
 // Il CV si apre solo con il token segreto dell'email di approvazione.
-router.get('/approve-tutor/cv', (req, res) => {
-  const tutor = pendingTutorByToken(req.query.token);
+router.get('/approve-tutor/cv', async (req, res) => {
+  const tutor = await pendingTutorByToken(req.query.token);
   if (!tutor || !tutor.cv_file) return res.status(404).send('Non trovato');
-  res.type('application/pdf').sendFile(path.join(CV_DIR, path.basename(tutor.cv_file)));
+  const file = await storage.read(`cv/${tutor.cv_file}`);
+  if (!file) return res.status(404).send('Non trovato');
+  res.type('application/pdf');
+  res.set('Cache-Control', 'private, no-store');
+  if (file.length != null) res.set('Content-Length', String(file.length));
+  file.stream.on('error', err => { console.error('CV: errore di lettura', err.message); res.destroy(err); });
+  file.stream.pipe(res);
 });
 
-router.post('/approve-tutor', express.urlencoded({ extended: false }), (req, res) => {
-  const tutor = pendingTutorByToken(req.body && req.body.token);
+router.post('/approve-tutor', express.urlencoded({ extended: false }), async (req, res) => {
+  const tutor = await pendingTutorByToken(req.body && req.body.token);
   if (!tutor) return res.status(404).send(simplePage('Link non valido', '<p>Questa richiesta non esiste più o è già stata gestita.</p>'));
   if (req.body.action === 'approve') {
-    db.prepare('UPDATE users SET approved = 1, approval_token = NULL WHERE id = ?').run(tutor.id);
+    await db.run('UPDATE users SET approved = 1, approval_token = NULL WHERE id = ?', tutor.id);
     sendMail({
       to: tutor.email,
       subject: 'Il tuo account Tutor è stato approvato',
@@ -175,16 +197,16 @@ router.post('/approve-tutor', express.urlencoded({ extended: false }), (req, res
     });
     return res.send(simplePage('Tutor approvato', `<p>${escapeHtml(tutor.name)} ora può accedere.</p>`));
   }
-  if (tutor.cv_file) fs.unlink(path.join(CV_DIR, path.basename(tutor.cv_file)), () => {});
-  db.prepare('DELETE FROM users WHERE id = ?').run(tutor.id);
+  if (tutor.cv_file) await storage.remove(`cv/${tutor.cv_file}`);
+  await db.run('DELETE FROM users WHERE id = ?', tutor.id);
   res.send(simplePage('Richiesta rifiutata', '<p>L\'account è stato eliminato.</p>'));
 });
 
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.status(400).json({ error: 'Inserisci email e password.' });
 
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase().trim());
+  const user = await db.get('SELECT * FROM users WHERE email = ?', email.toLowerCase().trim());
   if (!user || !bcrypt.compareSync(password, user.password_hash)) {
     return res.status(401).json({ error: 'Email o password non corrette.' });
   }
@@ -195,20 +217,20 @@ router.post('/login', (req, res) => {
   res.json({ user: publicUser(user) });
 });
 
-router.post('/logout', (req, res) => {
+router.post('/logout', async (req, res) => {
   clearAuthCookie(res);
   res.json({ ok: true });
 });
 
-router.get('/me', requireAuth, (req, res) => {
+router.get('/me', requireAuth, async (req, res) => {
   let therapistLink = null;
   let pendingTherapistRequest = null;
   if (req.user.role === 'patient') {
-    const link = db.prepare(`
+    const link = await db.get(`
       SELECT pt.*, u.name as therapist_name, u.avatar as therapist_avatar, u.specialty as therapist_specialty
       FROM patient_therapist pt JOIN users u ON u.id = pt.therapist_id
       WHERE pt.patient_id = ?
-    `).get(req.user.id);
+    `, req.user.id);
     // Il collegamento "vero" (therapistLink) esiste solo dopo che il tutor lo
     // ha accettato; finché è in attesa lo esponiamo separatamente, così il
     // frontend può mostrare la schermata di attesa invece della lista tutor.

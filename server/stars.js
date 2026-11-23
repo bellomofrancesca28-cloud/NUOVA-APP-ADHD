@@ -6,13 +6,13 @@
 const db = require('./db');
 const { todayStr } = require('./helpers');
 
-function computeStars(userId) {
+async function computeStars(userId) {
   const today = todayStr();
-  const rows = db.prepare(`
+  const rows = await db.all(`
     SELECT item_date, COUNT(*) as count, SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) as done
     FROM agenda_items WHERE user_id = ? AND item_date <= ?
     GROUP BY item_date
-  `).all(userId, today);
+  `, userId, today);
   const starDates = rows.filter(r => r.count > 0 && r.done === r.count).map(r => r.item_date);
   const set = new Set(starDates);
 

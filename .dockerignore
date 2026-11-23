@@ -1,0 +1,15 @@
+# Nulla di locale o segreto deve finire nell'immagine.
+.env
+.env.*
+!.env.example
+node_modules
+.git
+.gitignore
+.claude
+.vscode
+**/.DS_Store
+public/uploads
+server/data
+*.md
+Dockerfile
+.dockerignore

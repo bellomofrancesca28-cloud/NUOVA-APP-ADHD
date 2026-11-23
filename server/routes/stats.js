@@ -1,74 +1,79 @@
-const express = require('express');
 const db = require('../db');
 const { requireAuth, requireRole } = require('../middleware');
 const stats = require('../stats-engine');
-const { todayStr } = require('../helpers');
+const { todayStr, Router } = require('../helpers');
 const { computeStars } = require('../stars');
 
-const router = express.Router();
+const router = Router();
 
-router.get('/summary', requireAuth, requireRole('patient'), (req, res) => {
-  res.json(stats.fullSummary(req.user));
+router.get('/summary', requireAuth, requireRole('patient'), async (req, res) => {
+  res.json(await stats.fullSummary(req.user));
 });
 
 // Pagina "Statistiche": oggi / settimana / mese, ciascuno con percentuale
 // complessiva e distribuzione per categoria, calcolati sui dati reali.
-function detailedFor(user) {
+async function detailedFor(user) {
   const today = todayStr();
-  const week = stats.weekHistory(user.id);
-  const monthBuckets = stats.weeklyBuckets(user.id, 5);
+  const [week, monthBuckets, dayPct, dayCats, weekCats, monthCats] = await Promise.all([
+    stats.weekHistory(user.id),
+    stats.weeklyBuckets(user.id, 5),
+    stats.dayCompletionPct(user.id, today),
+    stats.categoryBreakdownRange(user.id, user.age_group, 1),
+    stats.categoryBreakdownRange(user.id, user.age_group, 7),
+    stats.categoryBreakdownRange(user.id, user.age_group, 30),
+  ]);
   return {
     day: {
-      pct: stats.dayCompletionPct(user.id, today),
-      categoryBreakdown: stats.categoryBreakdownRange(user.id, user.age_group, 1),
+      pct: dayPct,
+      categoryBreakdown: dayCats,
     },
     week: {
       days: week,
       avgPct: stats.overallAvg(week.map(d => d.pct)),
-      categoryBreakdown: stats.categoryBreakdownRange(user.id, user.age_group, 7),
+      categoryBreakdown: weekCats,
     },
     month: {
       buckets: monthBuckets,
       avgPct: stats.overallAvg(monthBuckets.map(b => b.pct)),
-      categoryBreakdown: stats.categoryBreakdownRange(user.id, user.age_group, 30),
+      categoryBreakdown: monthCats,
     },
   };
 }
 
-router.get('/detailed', requireAuth, requireRole('patient'), (req, res) => {
-  res.json(detailedFor(req.user));
+router.get('/detailed', requireAuth, requireRole('patient'), async (req, res) => {
+  res.json(await detailedFor(req.user));
 });
 
 // Il tutor vede, per un utente collegato, lo stato d'animo di oggi, il livello
 // di focus/energia/stress, le stelle e le statistiche (oggi/settimana/mese).
-router.get('/patient/:patientId/overview', requireAuth, requireRole('therapist'), (req, res) => {
-  const link = db.prepare('SELECT * FROM patient_therapist WHERE patient_id = ? AND therapist_id = ? AND status = \'active\'').get(req.params.patientId, req.user.id);
+router.get('/patient/:patientId/overview', requireAuth, requireRole('therapist'), async (req, res) => {
+  const link = await db.get('SELECT * FROM patient_therapist WHERE patient_id = ? AND therapist_id = ? AND status = \'active\'', req.params.patientId, req.user.id);
   if (!link) return res.status(403).json({ error: 'Questo utente non è collegato al tuo account.' });
-  const patient = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.patientId);
-  const todayMood = db.prepare(`
+  const patient = await db.get('SELECT * FROM users WHERE id = ?', req.params.patientId);
+  const todayMood = await db.get(`
     SELECT mood_label, created_at FROM checkins
-    WHERE user_id = ? AND mood_label IS NOT NULL AND date(created_at) = date('now')
+    WHERE user_id = ? AND mood_label IS NOT NULL AND (created_at AT TIME ZONE 'UTC')::date = (now() AT TIME ZONE 'UTC')::date
     ORDER BY created_at DESC, id DESC LIMIT 1
-  `).get(patient.id);
-  const lastCheckin = db.prepare('SELECT mood, created_at FROM checkins WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 1').get(patient.id);
-  const state = db.prepare('SELECT energy, focus, stress FROM daily_state WHERE user_id = ? AND date = ?').get(patient.id, todayStr());
+  `, patient.id);
+  const lastCheckin = await db.get('SELECT mood, created_at FROM checkins WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 1', patient.id);
+  const state = await db.get('SELECT energy, focus, stress FROM daily_state WHERE user_id = ? AND date = ?', patient.id, todayStr());
   res.json({
     todayMood: todayMood ? todayMood.mood_label : null,
     lastCheckin: lastCheckin || null,
     state: state || null,
-    stars: computeStars(patient.id),
-    detailed: detailedFor(patient),
+    stars: await computeStars(patient.id),
+    detailed: await detailedFor(patient),
   });
 });
 
 // Vista terapeuta su UN paziente specifico: prima verifichiamo che quel
 // paziente sia davvero collegato a questo terapeuta (isolamento dei dati).
-router.get('/patient/:patientId', requireAuth, requireRole('therapist'), (req, res) => {
-  const link = db.prepare('SELECT * FROM patient_therapist WHERE patient_id = ? AND therapist_id = ? AND status = \'active\'').get(req.params.patientId, req.user.id);
+router.get('/patient/:patientId', requireAuth, requireRole('therapist'), async (req, res) => {
+  const link = await db.get('SELECT * FROM patient_therapist WHERE patient_id = ? AND therapist_id = ? AND status = \'active\'', req.params.patientId, req.user.id);
   if (!link) return res.status(403).json({ error: 'Questo utente non è collegato al tuo account.' });
-  const patient = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.patientId);
-  const summary = stats.fullSummary(patient);
-  const trend = stats.checkinTrend(patient.id, 7);
+  const patient = await db.get('SELECT * FROM users WHERE id = ?', req.params.patientId);
+  const summary = await stats.fullSummary(patient);
+  const trend = await stats.checkinTrend(patient.id, 7);
   const moodSeries = trend.map(t => t.mood).filter(v => v !== null);
   // I check-in usano una scala 1-10, le percentuali dell'agenda una scala
   // 0-100: portiamo l'umore in percentuale prima di confrontarlo con la

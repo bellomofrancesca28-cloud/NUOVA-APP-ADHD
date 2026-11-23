@@ -36,13 +36,39 @@ function publicUser(u) {
 // paziente): niente 0/O/1/I, facili da confondere quando il codice viene
 // letto ad alta voce o ricopiato a mano.
 const LINK_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-function generateLinkCode(db) {
+async function generateLinkCode(db) {
   let code;
   do {
     code = '';
     for (let i = 0; i < 6; i++) code += LINK_CODE_CHARS[Math.floor(Math.random() * LINK_CODE_CHARS.length)];
-  } while (db.prepare('SELECT id FROM users WHERE link_code = ?').get(code));
+  } while (await db.get('SELECT id FROM users WHERE link_code = ?', code));
   return code;
 }
 
-module.exports = { CATEGORY_SETS, ROUTINE_CATEGORY, ageGroupFromRange, todayStr, daysAgoStr, publicUser, generateLinkCode };
+// Le query al database ora sono asincrone (async/await). Express 4 però non
+// intercetta da solo gli errori delle funzioni async: senza questo involucro
+// un errore del database farebbe cadere l'intero server invece di
+// rispondere "Errore interno" (vedi il gestore errori in index.js).
+// Router() si usa esattamente come express.Router().
+const express = require('express');
+function wrapAsync(fn) {
+  if (typeof fn !== 'function' || fn.length === 4) return fn; // i gestori d'errore restano com'erano
+  return function (req, res, next) {
+    try {
+      const out = fn(req, res, next);
+      if (out && typeof out.catch === 'function') out.catch(next);
+    } catch (e) {
+      next(e);
+    }
+  };
+}
+function Router() {
+  const router = express.Router();
+  for (const method of ['get', 'post', 'put', 'patch', 'delete']) {
+    const original = router[method].bind(router);
+    router[method] = (routePath, ...handlers) => original(routePath, ...handlers.map(wrapAsync));
+  }
+  return router;
+}
+
+module.exports = { CATEGORY_SETS, ROUTINE_CATEGORY, ageGroupFromRange, todayStr, daysAgoStr, publicUser, generateLinkCode, Router, wrapAsync };

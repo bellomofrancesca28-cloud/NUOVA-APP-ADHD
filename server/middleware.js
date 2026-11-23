@@ -6,10 +6,10 @@
 const db = require('./db');
 const { readToken } = require('./auth-utils');
 
-function requireAuth(req, res, next) {
+async function requireAuth(req, res, next) {
   const payload = readToken(req);
   if (!payload) return res.status(401).json({ error: 'Non autenticato. Effettua di nuovo il login.' });
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(payload.id);
+  const user = await db.get('SELECT * FROM users WHERE id = ?', payload.id);
   if (!user) return res.status(401).json({ error: 'Utente non trovato.' });
   if (user.role === 'therapist' && user.approved === 0) {
     return res.status(403).json({ error: 'Il tuo account tutor è in attesa di approvazione.' });

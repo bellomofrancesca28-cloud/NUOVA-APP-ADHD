@@ -3,6 +3,18 @@
 // Crea qualche terapeuta demo cosi' la schermata "scegli il tuo terapeuta" non
 // è vuota durante lo sviluppo. NON va lanciato su un ambiente con pazienti
 // reali: creerebbe account con password demo conosciute pubblicamente.
+// Per sicurezza si rifiuta di partire se NODE_ENV=production.
+try {
+  const envPath = require('path').join(__dirname, '..', '.env');
+  require('fs').readFileSync(envPath, 'utf8').split('\n').forEach(line => {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
+    if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
+  });
+} catch (e) { /* nessun .env */ }
+if (process.env.NODE_ENV === 'production') {
+  console.error('Seed bloccato: NODE_ENV=production. Gli account demo hanno password pubbliche.');
+  process.exit(1);
+}
 const bcrypt = require('bcryptjs');
 const db = require('./db');
 
@@ -12,15 +24,22 @@ const demoTherapists = [
   { email: 'demo.ferri@example.com', name: 'Dott.ssa Ferri', specialty: 'Psichiatra', bio: 'Follow-up clinico e coordinamento con il resto del team.' },
 ];
 
-const insert = db.prepare(`
-  INSERT INTO users (email, password_hash, role, name, bio, specialty)
-  VALUES (@email, @passwordHash, 'therapist', @name, @bio, @specialty)
-`);
-
-for (const t of demoTherapists) {
-  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(t.email);
-  if (existing) { console.log(`Già presente: ${t.email}`); continue; }
-  insert.run({ ...t, passwordHash: bcrypt.hashSync('DemoPass123', 10) });
-  console.log(`Creato terapeuta demo: ${t.email} (password: DemoPass123)`);
-}
-console.log('Seed completato.');
+(async () => {
+  await db.migrate();
+  console.log(`Database: ${process.env.PGDATABASE || '(default)'} su ${process.env.PGHOST || 'localhost'}`);
+  for (const t of demoTherapists) {
+    const existing = await db.get('SELECT id FROM users WHERE email = ?', t.email);
+    if (existing) { console.log(`Già presente: ${t.email}`); continue; }
+    await db.run(
+      "INSERT INTO users (email, password_hash, role, name, bio, specialty) VALUES (?, ?, 'therapist', ?, ?, ?)",
+      t.email, bcrypt.hashSync('DemoPass123', 10), t.name, t.bio, t.specialty,
+    );
+    console.log(`Creato terapeuta demo: ${t.email} (password: DemoPass123)`);
+  }
+  console.log('Seed completato.');
+  await db.close();
+})().catch(async e => {
+  console.error('Seed fallito:', e.message);
+  await db.close().catch(() => {});
+  process.exit(1);
+});
